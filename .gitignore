@@ -8,6 +8,11 @@
 .cursor/
 test_data/
 
+# Agent tooling. Kept here rather than in .git/info/exclude, which is local to
+# one clone and which the sdist build does not read — so an exclude-only entry
+# shipped .claude/settings.local.json inside the release artifact.
+.claude/
+
 # Corpus-derived goldens. Frozen at the Python cutover: the Go capture tool
 # they came from is gone, so these cannot be regenerated — see
 # testdata/golden/MANIFEST.md. They embed real opponent usernames (P0-8).
