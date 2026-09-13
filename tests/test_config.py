@@ -551,7 +551,7 @@ def test_an_unset_stockfish_path_falls_back_to_the_plain_command(
 def test_a_stockfish_path_pointing_nowhere_names_the_variable(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """"not on PATH" would be a lie when the user set an explicit path."""
+    """ "not on PATH" would be a lie when the user set an explicit path."""
     from zeitnot.engine import EngineError, require_stockfish
 
     monkeypatch.setenv("STOCKFISH_PATH", str(tmp_path / "absent"))
