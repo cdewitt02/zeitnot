@@ -19,8 +19,30 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 GOLDEN_DIR = REPO_ROOT / "testdata" / "golden"
 
 
+_MISSING_GOLDEN = (
+    "corpus goldens are gitignored and are not present; "
+    "see testdata/golden/MANIFEST.md for what it takes to recapture them"
+)
+
+
+def require_golden(path: pathlib.Path) -> pathlib.Path:
+    """Skip, rather than error, when a gitignored golden is absent.
+
+    Only four goldens are tracked; analysis.json, summaries.json and prompts/
+    are not, and the capture tool that made them is gone. A `golden`-marked
+    test therefore has to treat a missing file as "cannot check this here",
+    which is what the marker already promises. Reading one unguarded turns a
+    fresh clone into a collection error instead — and the `not corpus` subset
+    CI runs contains such a test, so the guard belongs on the read itself
+    rather than on each caller that happens to remember it.
+    """
+    if not path.exists():
+        pytest.skip(_MISSING_GOLDEN)
+    return path
+
+
 def load_golden(name: str) -> Any:
-    return json.loads((GOLDEN_DIR / name).read_text())
+    return json.loads(require_golden(GOLDEN_DIR / name).read_text())
 
 
 @pytest.fixture(scope="session")
@@ -48,33 +70,18 @@ def corpus_username() -> str:
     different player does not silently compare the wrong things.
     """
     manifest = GOLDEN_DIR / "prompts" / "manifest.json"
-    if not manifest.exists():
-        pytest.skip(
-            "corpus goldens are gitignored and are not present; "
-            "see testdata/golden/MANIFEST.md for what it takes to recapture them"
-        )
-    return str(json.loads(manifest.read_text())["username"])
+    return str(json.loads(require_golden(manifest).read_text())["username"])
 
 
 @pytest.fixture(scope="session")
 def prompt_manifest() -> dict[str, Any]:
     manifest = GOLDEN_DIR / "prompts" / "manifest.json"
-    if not manifest.exists():
-        pytest.skip(
-            "corpus goldens are gitignored and are not present; "
-            "see testdata/golden/MANIFEST.md for what it takes to recapture them"
-        )
-    result: dict[str, Any] = json.loads(manifest.read_text())
+    result: dict[str, Any] = json.loads(require_golden(manifest).read_text())
     return result
 
 
 @pytest.fixture(scope="session")
 def summary_goldens() -> list[dict[str, Any]]:
     path = GOLDEN_DIR / "summaries.json"
-    if not path.exists():
-        pytest.skip(
-            "corpus goldens are gitignored and are not present; "
-            "see testdata/golden/MANIFEST.md for what it takes to recapture them"
-        )
-    result: list[dict[str, Any]] = json.loads(path.read_text())
+    result: list[dict[str, Any]] = json.loads(require_golden(path).read_text())
     return result
