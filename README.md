@@ -1,11 +1,11 @@
-# Chesser
+# Zeitnot
 
-Chat with your own Chess.com games. Chesser analyzes every move with Stockfish,
+Chat with your own Chess.com games. Zeitnot analyzes every move with Stockfish,
 writes a summary of each game, and answers questions about your play grounded in
 what actually happened on the board — not in generic chess advice.
 
 ```console
-$ chesser chat cdew4
+$ zeitnot chat cdew4
 
 Chess Coach Chat
 ================
@@ -82,24 +82,24 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Chesser reads that file from the working directory on every run — there is
+Zeitnot reads that file from the working directory on every run — there is
 nothing to source. A variable already exported wins over the file, so a value
 set by hand is never overwritten.
 
 The database needs no further setup: the image ships pgvector, the extension is
-enabled on first start, and chesser creates its own tables when you first run
+enabled on first start, and zeitnot creates its own tables when you first run
 it.
 
-Already running PostgreSQL on port 5432? Change `CHESSER_DB_PORT` in `.env`.
+Already running PostgreSQL on port 5432? Change `ZEITNOT_DB_PORT` in `.env`.
 Docker Compose reads the same file, and `DATABASE_URL` is built from that same
-variable, so both sides move together — and `chesser doctor` compares them.
+variable, so both sides move together — and `zeitnot doctor` compares them.
 
 <details>
 <summary>Using your own PostgreSQL instead</summary>
 
 ```bash
-psql -c "CREATE DATABASE chesser;"
-psql -d chesser -c "CREATE EXTENSION vector;"
+psql -c "CREATE DATABASE zeitnot;"
+psql -d zeitnot -c "CREATE EXTENSION vector;"
 ```
 
 You will need pgvector installed, which often means building it from source
@@ -107,7 +107,7 @@ against your local PostgreSQL headers. The container exists to avoid exactly
 this step.
 </details>
 
-### 2. Install chesser
+### 2. Install zeitnot
 
 ```bash
 uv tool install .          # or: pipx install .
@@ -149,26 +149,26 @@ offers no embeddings API. See [Providers](#providers).
 ### 4. Check the setup
 
 ```bash
-chesser doctor
+zeitnot doctor
 ```
 
 ```console
-[ ok ] environment file     /home/you/chesser/.env: 4 value(s) applied
+[ ok ] environment file     /home/you/zeitnot/.env: 4 value(s) applied
 [ ok ] configuration        chat ollama / llama3.2
                             embeddings ollama / nomic-embed-text
 [skip] credentials          no hosted provider is selected
 [ ok ] stockfish            Stockfish 16 at /usr/games/stockfish
-[ ok ] DATABASE_URL         postgres://chesser:***@localhost:5432/chesser
+[ ok ] DATABASE_URL         postgres://zeitnot:***@localhost:5432/zeitnot
 [ ok ] database port        compose and DATABASE_URL both use 5432
 [ ok ] database             connected
 [ ok ] pgvector             installed
-[ ok ] corpus               no tables yet — chesser creates them on the first `chesser data analyze`
+[ ok ] corpus               no tables yet — zeitnot creates them on the first `zeitnot data analyze`
 [ ok ] chat provider        reachable, credentials and model accepted
 [ ok ] embeddings           reachable, credentials and model accepted
 
 11 ok
 
-Nothing is blocking a run. Next: chesser data analyze <username> <year> <month>
+Nothing is blocking a run. Next: zeitnot data analyze <username> <year> <month>
 ```
 
 It runs every check the real commands run, reports all of them rather than
@@ -178,10 +178,10 @@ output is safe to paste into an issue. It exits non-zero if anything failed.
 ### 5. Analyze a month of games
 
 ```bash
-chesser data analyze <username> <year> <month>
+zeitnot data analyze <username> <year> <month>
 
 # Example
-chesser data analyze cdew4 2026 01
+zeitnot data analyze cdew4 2026 01
 ```
 
 **The month needs its leading zero** — `01`, not `1`. Expect roughly a second
@@ -190,10 +190,10 @@ per game: every move is searched twice by Stockfish, which dominates the run.
 ### 6. Ask it something
 
 ```bash
-chesser chat <username> [chat-model]
+zeitnot chat <username> [chat-model]
 
 # Example
-chesser chat cdew4
+zeitnot chat cdew4
 ```
 
 The optional positional model is passed to whichever chat provider is selected,
@@ -205,7 +205,7 @@ improve fastest?"*
 
 ## If something goes wrong
 
-Run `chesser doctor`. It names the failing check and the remedy, and it reports
+Run `zeitnot doctor`. It names the failing check and the remedy, and it reports
 everything that is wrong in one pass rather than one failure per attempt.
 
 [`docs/troubleshooting.md`](docs/troubleshooting.md) covers the failures that
@@ -271,7 +271,7 @@ half.
 
 **This sends data off-machine.** Selecting a hosted provider sends your game
 summaries and Chess.com username to a third party. Both the startup banner and
-`chesser doctor` say so whenever a hosted provider is active.
+`zeitnot doctor` say so whenever a hosted provider is active.
 
 Opponents' usernames are **not** sent. Chess.com's termination strings embed the
 winner's handle ("Bolzman0 won by resignation"), so those are normalized to the
@@ -279,7 +279,7 @@ outcome and method — "lost by resignation" — before they reach the prompt or
 stored summary. Anything in an unrecognized format collapses to "lost by other
 means" rather than being passed through.
 
-If you ingested games before this change, run `chesser data refresh-stats
+If you ingested games before this change, run `zeitnot data refresh-stats
 <username>` to rebuild the aggregates. Summaries written earlier still carry the
 old text until they are regenerated.
 
@@ -303,21 +303,21 @@ EMBED_PROVIDER=openai
 `game_summaries` column already declares — so no schema migration is involved.
 It is still a *different* embedding model: vectors from two models are not
 comparable even at the same width, so switching embed providers on an existing
-index is refused at startup, naming the re-embed path (`chesser data reembed`).
+index is refused at startup, naming the re-embed path (`zeitnot data reembed`).
 
 ## Environment Variables
 
-Chesser reads `.env` from the working directory on every run. Carriage returns
+Zeitnot reads `.env` from the working directory on every run. Carriage returns
 are stripped, quoting and comments are parsed rather than word-split, and
 `${VAR}` references resolve against the whole file regardless of the order lines
-appear in. **Anything already exported wins over the file** — `chesser doctor`
+appear in. **Anything already exported wins over the file** — `zeitnot doctor`
 reports which values it declined to set for that reason.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | *required* |
-| `CHESSER_DB_PORT` | Host port `docker-compose.yml` publishes; `DATABASE_URL` is built from it | `5432` |
-| `CHESSER_ENV_FILE` | Read configuration from another path; set it empty to read no file at all | `.env` |
+| `ZEITNOT_DB_PORT` | Host port `docker-compose.yml` publishes; `DATABASE_URL` is built from it | `5432` |
+| `ZEITNOT_ENV_FILE` | Read configuration from another path; set it empty to read no file at all | `.env` |
 | `CHAT_PROVIDER` | Chat provider: `ollama`, `anthropic`, or `openai` | `ollama` |
 | `CHAT_MODEL` | Chat model (positional CLI arg outranks it) | per provider |
 | `EMBED_PROVIDER` | Embedding provider: `ollama` or `openai` | `ollama` |
@@ -329,14 +329,14 @@ reports which values it declined to set for that reason.
 | `STOCKFISH_PATH` | Path to the Stockfish binary; overrides the `PATH` lookup | `stockfish` on `PATH` |
 | `NUM_WORKERS` | Parallel analysis workers | `4` |
 | `NO_COLOR` | Set to any value to print raw markdown instead of styled output | — |
-| `CHESSER_DEBUG_PROMPT` | Set to any value to dump the assembled prompt to stderr | — |
+| `ZEITNOT_DEBUG_PROMPT` | Set to any value to dump the assembled prompt to stderr | — |
 
 Credentials come from the environment only, under the provider-standard names.
 See `.env.example`.
 
 ### Terminal output
 
-The coach answers in markdown, and `chesser chat` renders it in place: headings,
+The coach answers in markdown, and `zeitnot chat` renders it in place: headings,
 bullets, tables, and fenced code blocks are styled to the terminal's width. The
 reply streams in as plain text while the model works, then is repainted once as
 the finished document — markdown cannot be laid out incrementally, because
@@ -344,10 +344,10 @@ wrapping and table widths are properties of the whole answer.
 
 Styling is skipped, and the raw markdown printed instead, whenever stdout is not
 a terminal, `NO_COLOR` is set, or `TERM` reports a terminal that cannot render
-it. So `chesser chat magnus > notes.md` captures clean markdown rather than
+it. So `zeitnot chat magnus > notes.md` captures clean markdown rather than
 escape codes.
 
-`chesser doctor` is never styled: it is written to be pasted into an issue.
+`zeitnot doctor` is never styled: it is written to be pasted into an issue.
 
 ### Changing the embedding model
 
@@ -362,17 +362,17 @@ LLM and no Stockfish, so this reads stored text and updates vectors rather than
 re-running analysis.
 
 ```bash
-chesser data reembed
+zeitnot data reembed
 ```
 
 ## Project Structure
 
 ```
-chesser/
+zeitnot/
   api.py       # Chess.com API client
-  cli.py       # The `chesser` command: doctor, data and chat subcommands
+  cli.py       # The `zeitnot` command: doctor, data and chat subcommands
   config.py    # Provider selection and startup validation
-  doctor.py    # `chesser doctor`: every startup check, run together
+  doctor.py    # `zeitnot doctor`: every startup check, run together
   engine.py    # Stockfish analysis via python-chess
   envfile.py   # Reads .env, so the shell is not the configuration loader
   ingest.py    # The analysis worker pool

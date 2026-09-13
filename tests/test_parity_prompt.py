@@ -24,12 +24,12 @@ from typing import Any
 
 import pytest
 
-from chesser.chat.classifier import classify_query, extract_mentioned_openings
-from chesser.chat.service import Config, Service
-from chesser.config import resolve
-from chesser.db import DB
-from chesser.search.parser import QueryParser
 from tests.conftest import GOLDEN_DIR, load_golden
+from zeitnot.chat.classifier import classify_query, extract_mentioned_openings
+from zeitnot.chat.service import Config, Service
+from zeitnot.config import resolve
+from zeitnot.db import DB
+from zeitnot.search.parser import QueryParser
 
 pytestmark = [pytest.mark.corpus, pytest.mark.golden]
 
@@ -105,7 +105,7 @@ def test_parsing_is_stable_across_repeated_calls() -> None:
 
 @pytest.fixture(scope="module")
 def service(db: DB, prompt_manifest: dict[str, Any]) -> Service:
-    """A Service wired exactly as `chesser chat` wires it.
+    """A Service wired exactly as `zeitnot chat` wires it.
 
     Same embedder, same NumSimilar and DetailLimit as the capture. A different
     value for either would produce a prompt no real session ever sees.

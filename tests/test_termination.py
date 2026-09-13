@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from chesser.models import normalize_termination
+from zeitnot.models import normalize_termination
 
 
 @pytest.mark.parametrize(

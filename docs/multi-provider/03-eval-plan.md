@@ -28,7 +28,7 @@ A lightweight way to compare answer quality across providers once
 [`02-migration-plan.md`](./02-migration-plan.md) lands. Deliberately small: a fixed question set, a
 human-judged rubric, and a spreadsheet. No scoring model, no eval framework, no new dependencies.
 
-**Why not automate.** Chesser's answers are open-ended coaching prose grounded in one player's game
+**Why not automate.** Zeitnot's answers are open-ended coaching prose grounded in one player's game
 history. There is no reference answer to match against and no labeled dataset. An LLM-as-judge would
 itself be a provider whose reliability is exactly what is in question — circular for the one comparison
 that matters most. Building the infrastructure to do this properly costs more than the decision it

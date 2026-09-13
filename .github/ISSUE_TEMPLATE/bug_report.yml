@@ -6,12 +6,12 @@ body:
     attributes:
       value: |
         Setup for this project touches several moving parts, so most reports are
-        unanswerable without the environment below. **`chesser doctor` answers
+        unanswerable without the environment below. **`zeitnot doctor` answers
         most of it in one command** — paste its output and skip anything it
         already covers.
 
-        **Before filing:** run `chesser doctor`, then check
-        [docs/troubleshooting.md](https://github.com/cdewitt02/chesser/blob/main/docs/troubleshooting.md),
+        **Before filing:** run `zeitnot doctor`, then check
+        [docs/troubleshooting.md](https://github.com/cdewitt02/zeitnot/blob/main/docs/troubleshooting.md),
         which covers the failures that look like bugs but aren't — including the
         embedding provider mismatch and the leading-zero month.
 
@@ -21,7 +21,7 @@ body:
       label: What happened
       description: What you expected, and what you got instead.
       placeholder: |
-        Expected: `chesser data analyze me 2026 03` to fetch March games.
+        Expected: `zeitnot data analyze me 2026 03` to fetch March games.
         Got: "no games found for user ..."
     validations:
       required: true
@@ -48,7 +48,7 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: "`chesser doctor` output"
+      label: "`zeitnot doctor` output"
       description: |
         Paste the whole thing. It reports the environment file, providers,
         credentials by presence, Stockfish, the database and the index in one
@@ -74,10 +74,10 @@ body:
         - Embeddings: openai
 
   - type: input
-    id: chesser-version
+    id: zeitnot-version
     attributes:
-      label: Chesser version or commit
-      description: "`chesser --version`, or the output of `git rev-parse --short HEAD`."
+      label: Zeitnot version or commit
+      description: "`zeitnot --version`, or the output of `git rev-parse --short HEAD`."
     validations:
       required: true
 

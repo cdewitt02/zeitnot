@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from chesser.models import Game, MoveAnalysis, Player
-from chesser.summary import detect_pattern, extract_summary_data, generate_summary
+from zeitnot.models import Game, MoveAnalysis, Player
+from zeitnot.summary import detect_pattern, extract_summary_data, generate_summary
 
 PGN = (
     '[Event "Live Chess"]\n'

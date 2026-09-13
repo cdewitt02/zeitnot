@@ -33,7 +33,7 @@ def database_url() -> str:
 
 @pytest.fixture(scope="session")
 def db(database_url: str):  # type: ignore[no-untyped-def]
-    from chesser.db import DB
+    from zeitnot.db import DB
 
     database = DB(database_url)
     yield database

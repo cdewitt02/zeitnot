@@ -1,4 +1,4 @@
-# chesser — Context
+# zeitnot — Context
 
 Glossary of domain terms. Definitions only — no specs, no implementation detail.
 

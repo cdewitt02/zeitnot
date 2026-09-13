@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from chesser import envfile
+from zeitnot import envfile
 
 
 def write(tmp_path: Path, text: str, name: str = "envfile") -> Path:
@@ -74,28 +74,28 @@ def test_a_line_that_is_not_an_assignment_is_reported_and_skipped(tmp_path: Path
 def test_crlf_line_endings_no_longer_corrupt_every_value(tmp_path: Path) -> None:
     """The worst of them: sourcing a CRLF file put a carriage return on the end
     of every value, including the API keys, and — because DATABASE_URL is built
-    from CHESSER_DB_PORT — in the *middle* of the connection string."""
+    from ZEITNOT_DB_PORT — in the *middle* of the connection string."""
     env, loaded = load(
         tmp_path,
-        "export CHESSER_DB_PORT=5433\r\n"
-        'export DATABASE_URL="postgres://c:c@localhost:${CHESSER_DB_PORT}/chesser"\r\n',
+        "export ZEITNOT_DB_PORT=5433\r\n"
+        'export DATABASE_URL="postgres://c:c@localhost:${ZEITNOT_DB_PORT}/zeitnot"\r\n',
     )
-    assert env["CHESSER_DB_PORT"] == "5433"
-    assert env["DATABASE_URL"] == "postgres://c:c@localhost:5433/chesser"
+    assert env["ZEITNOT_DB_PORT"] == "5433"
+    assert env["DATABASE_URL"] == "postgres://c:c@localhost:5433/zeitnot"
     assert "\r" not in env["DATABASE_URL"]
     assert loaded.crlf is True
 
 
 def test_a_reference_defined_below_its_use_still_resolves(tmp_path: Path) -> None:
-    """Appending CHESSER_DB_PORT to a file that already had DATABASE_URL used to
-    leave "localhost:/chesser", which libpq reads as 5432 — usually the very
+    """Appending ZEITNOT_DB_PORT to a file that already had DATABASE_URL used to
+    leave "localhost:/zeitnot", which libpq reads as 5432 — usually the very
     server the user was moving off."""
     env, _ = load(
         tmp_path,
-        'export DATABASE_URL="postgres://c:c@localhost:${CHESSER_DB_PORT}/chesser"\n'
-        "export CHESSER_DB_PORT=5433\n",
+        'export DATABASE_URL="postgres://c:c@localhost:${ZEITNOT_DB_PORT}/zeitnot"\n'
+        "export ZEITNOT_DB_PORT=5433\n",
     )
-    assert env["DATABASE_URL"] == "postgres://c:c@localhost:5433/chesser"
+    assert env["DATABASE_URL"] == "postgres://c:c@localhost:5433/zeitnot"
 
 
 def test_a_byte_order_mark_does_not_become_part_of_the_first_name(tmp_path: Path) -> None:
@@ -115,10 +115,10 @@ def test_the_environment_wins_and_the_file_says_so(tmp_path: Path) -> None:
     deferred name is reported because being right silently is not enough here."""
     env, loaded = load(
         tmp_path,
-        "DATABASE_URL=postgres://from:file@localhost:5432/chesser\n",
-        {"DATABASE_URL": "postgres://from:shell@localhost:5433/chesser"},
+        "DATABASE_URL=postgres://from:file@localhost:5432/zeitnot\n",
+        {"DATABASE_URL": "postgres://from:shell@localhost:5433/zeitnot"},
     )
-    assert env["DATABASE_URL"] == "postgres://from:shell@localhost:5433/chesser"
+    assert env["DATABASE_URL"] == "postgres://from:shell@localhost:5433/zeitnot"
     assert loaded.deferred == ("DATABASE_URL",)
     assert loaded.applied == ()
 
@@ -133,15 +133,15 @@ def test_an_exported_empty_value_counts_as_unset(tmp_path: Path) -> None:
 
 def test_a_reference_resolves_against_the_environment_before_the_file(tmp_path: Path) -> None:
     """A built value has to be consistent with the port actually in effect: an
-    exported CHESSER_DB_PORT=5433 must produce a URL naming 5433, not the 5432
+    exported ZEITNOT_DB_PORT=5433 must produce a URL naming 5433, not the 5432
     the file happens to say."""
     env, _ = load(
         tmp_path,
-        "CHESSER_DB_PORT=5432\n"
-        'DATABASE_URL="postgres://c:c@localhost:${CHESSER_DB_PORT}/chesser"\n',
-        {"CHESSER_DB_PORT": "5433"},
+        "ZEITNOT_DB_PORT=5432\n"
+        'DATABASE_URL="postgres://c:c@localhost:${ZEITNOT_DB_PORT}/zeitnot"\n',
+        {"ZEITNOT_DB_PORT": "5433"},
     )
-    assert env["DATABASE_URL"] == "postgres://c:c@localhost:5433/chesser"
+    assert env["DATABASE_URL"] == "postgres://c:c@localhost:5433/zeitnot"
 
 
 # ---------- interpolation edge cases ----------

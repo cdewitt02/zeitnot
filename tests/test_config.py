@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from chesser.config import Config, ConfigError, redact_secrets, resolve
+from zeitnot.config import Config, ConfigError, redact_secrets, resolve
 
 
 def env_of(pairs: dict[str, str]):  # type: ignore[no-untyped-def]
@@ -64,7 +64,7 @@ PRECEDENCE_CASES = [
         "mistral",
         ("ollama", "mistral", "ollama", "nomic-embed-text", "http://localhost:11434"),
         # The positional argument is the most specific source, which is what
-        # keeps `chesser chat <username> [model]` working.
+        # keeps `zeitnot chat <username> [model]` working.
         id="positional argument outranks CHAT_MODEL",
     ),
     pytest.param(
@@ -206,8 +206,8 @@ def test_local_only_setup_says_nothing_about_egress() -> None:
 
 
 def test_preflight_swallows_an_inconclusive_check_and_reraises_anything_else() -> None:
-    from chesser.config import preflight
-    from chesser.llm.errors import ErrorKind, LLMError
+    from zeitnot.config import preflight
+    from zeitnot.llm.errors import ErrorKind, LLMError
 
     class Inconclusive:
         def preflight(self) -> None:
@@ -253,8 +253,8 @@ def test_config_is_constructible_without_an_sdk_installed() -> None:
     ("text", "want"),
     [
         (
-            "connection failed for postgres://chesser:hunter2@localhost:5432/chesser",
-            "connection failed for postgres://chesser:***@localhost:5432/chesser",
+            "connection failed for postgres://zeitnot:hunter2@localhost:5432/zeitnot",
+            "connection failed for postgres://zeitnot:***@localhost:5432/zeitnot",
         ),
         # psycopg's own parse errors quote the URL back.
         (
@@ -281,7 +281,7 @@ def test_redact_secrets_blanks_credentials(text: str, want: str) -> None:
 @pytest.mark.parametrize(
     "text",
     [
-        "postgres://chesser@localhost/chesser",  # no password component
+        "postgres://zeitnot@localhost/zeitnot",  # no password component
         "Stockfish not found on PATH",
         "sk-",  # too short to be a key
         "",
@@ -294,17 +294,17 @@ def test_redact_secrets_leaves_everything_else_alone(text: str) -> None:
 def test_the_username_survives_redaction() -> None:
     """The user is not a secret, and it is usually what makes a connection error
     diagnosable — "wrong user" and "wrong password" look identical otherwise."""
-    assert "chesser" in redact_secrets("postgres://chesser:pw@localhost/db")
+    assert "zeitnot" in redact_secrets("postgres://zeitnot:pw@localhost/db")
 
 
 def test_the_pool_logger_filter_redacts_a_quoted_dsn() -> None:
     """psycopg_pool logs connection failures on its own logger, without passing
-    through any chesser error path. A malformed DATABASE_URL makes libpq quote
+    through any zeitnot error path. A malformed DATABASE_URL makes libpq quote
     the whole DSN back, so this is the path that actually leaked in practice.
     """
     import logging
 
-    from chesser.db import _install_pool_log_redaction
+    from zeitnot.db import _install_pool_log_redaction
 
     _install_pool_log_redaction()
     logger = logging.getLogger("psycopg.pool")
@@ -315,7 +315,7 @@ def test_the_pool_logger_filter_redacts_a_quoted_dsn() -> None:
         __file__,
         0,
         'error connecting in %r: missing "=" after "%s" in connection info string',
-        ("pool-1", "notascheme://chesser:hunter2@localhost/chesser"),
+        ("pool-1", "notascheme://zeitnot:hunter2@localhost/zeitnot"),
         None,
     )
     for log_filter in logger.filters:
@@ -323,7 +323,7 @@ def test_the_pool_logger_filter_redacts_a_quoted_dsn() -> None:
             log_filter.filter(record)
 
     assert "hunter2" not in record.getMessage()
-    assert "chesser:***@" in record.getMessage()
+    assert "zeitnot:***@" in record.getMessage()
 
 
 def test_the_pool_logger_filter_swallows_retry_chatter_and_keeps_the_reason() -> None:
@@ -333,7 +333,7 @@ def test_the_pool_logger_filter_swallows_retry_chatter_and_keeps_the_reason() ->
     """
     import logging
 
-    from chesser.db import _install_pool_log_redaction
+    from zeitnot.db import _install_pool_log_redaction
 
     _install_pool_log_redaction()
     logger = logging.getLogger("psycopg.pool")
@@ -351,9 +351,9 @@ def test_the_pool_logger_filter_swallows_retry_chatter_and_keeps_the_reason() ->
     )
     assert pool_filter.filter(record) is False
 
-    import chesser.db
+    import zeitnot.db
 
-    assert "Connection refused" in chesser.db._last_connect_error
+    assert "Connection refused" in zeitnot.db._last_connect_error
 
 
 def test_a_pool_timeout_is_reported_as_the_reason_libpq_gave() -> None:
@@ -361,10 +361,10 @@ def test_a_pool_timeout_is_reported_as_the_reason_libpq_gave() -> None:
     connection, the wrong port, and the wrong password all look identical
     through it, which is the failure a first-time setup actually hits.
     """
-    import chesser.db
-    from chesser.db import _connect_failure
+    import zeitnot.db
+    from zeitnot.db import _connect_failure
 
-    chesser.db._last_connect_error = (
+    zeitnot.db._last_connect_error = (
         "error connecting in 'pool-1': connection failed: connection to server "
         'at "127.0.0.1", port 5499 failed: Connection refused\n'
         '\tconnection to server at "127.0.0.1", port 5499 failed: Connection refused'
@@ -374,16 +374,16 @@ def test_a_pool_timeout_is_reported_as_the_reason_libpq_gave() -> None:
     assert "could not connect to the database after 30s" in message
     # The duplicate libpq line — one per address tried — appears once.
     assert message.count("Connection refused") == 1
-    assert "CHESSER_DB_PORT" in message
+    assert "ZEITNOT_DB_PORT" in message
 
 
 def test_a_connection_failure_does_not_leak_the_password() -> None:
     """The DSN reaches this path through psycopg_pool's own log record, which
-    never passes through chesser's output sites."""
+    never passes through zeitnot's output sites."""
     import logging
 
-    import chesser.db
-    from chesser.db import _connect_failure, _install_pool_log_redaction
+    import zeitnot.db
+    from zeitnot.db import _connect_failure, _install_pool_log_redaction
 
     _install_pool_log_redaction()
     logger = logging.getLogger("psycopg.pool")
@@ -393,7 +393,7 @@ def test_a_connection_failure_does_not_leak_the_password() -> None:
         __file__,
         0,
         'error connecting in %r: missing "=" after "%s" in connection info string',
-        ("pool-1", "notascheme://chesser:hunter2@localhost/chesser"),
+        ("pool-1", "notascheme://zeitnot:hunter2@localhost/zeitnot"),
         None,
     )
     for log_filter in logger.filters:
@@ -402,8 +402,8 @@ def test_a_connection_failure_does_not_leak_the_password() -> None:
 
     message = str(_connect_failure(30.0))
     assert "hunter2" not in message
-    assert "chesser:***@" in message
-    assert chesser.db._last_connect_error  # captured, not merely redacted
+    assert "zeitnot:***@" in message
+    assert zeitnot.db._last_connect_error  # captured, not merely redacted
 
 
 def test_a_missing_database_is_not_reported_as_a_port_problem() -> None:
@@ -412,29 +412,29 @@ def test_a_missing_database_is_not_reported_as_a_port_problem() -> None:
     empty data directory, so an interrupted first `up` leaves a volume that no
     restart repairs.
     """
-    from chesser.db import _hint
+    from zeitnot.db import _hint
 
-    hint = " ".join(_hint('FATAL:  database "chesser" does not exist'))
+    hint = " ".join(_hint('FATAL:  database "zeitnot" does not exist'))
 
     assert "down -v" in hint
-    assert "CHESSER_DB_PORT" not in hint
+    assert "ZEITNOT_DB_PORT" not in hint
 
 
 def test_a_rejected_login_points_at_the_wrong_server_not_the_volume() -> None:
-    from chesser.db import _hint
+    from zeitnot.db import _hint
 
-    hint = " ".join(_hint('FATAL:  password authentication failed for user "chesser"'))
+    hint = " ".join(_hint('FATAL:  password authentication failed for user "zeitnot"'))
 
-    assert "CHESSER_DB_PORT" in hint
+    assert "ZEITNOT_DB_PORT" in hint
     assert "down -v" not in hint
 
 
 def test_a_refused_connection_points_at_the_port() -> None:
-    from chesser.db import _hint
+    from zeitnot.db import _hint
 
     hint = " ".join(_hint("Connection refused"))
 
-    assert "CHESSER_DB_PORT" in hint
+    assert "ZEITNOT_DB_PORT" in hint
     assert "down -v" not in hint
 
 
@@ -442,10 +442,10 @@ def test_a_refused_connection_points_at_the_port() -> None:
     "url",
     [
         # The CR lands mid-URL, because the port is interpolated into it.
-        "postgres://chesser:chesser@localhost:5433\r/chesser?sslmode=disable",
-        "postgres://chesser:chesser@localhost:5433/chesser\r",
-        "postgres://chesser:chesser@localhost:5433/chesser\n",
-        "postgres://chesser:chesser@localhost:5433/chesser\t",
+        "postgres://zeitnot:zeitnot@localhost:5433\r/zeitnot?sslmode=disable",
+        "postgres://zeitnot:zeitnot@localhost:5433/zeitnot\r",
+        "postgres://zeitnot:zeitnot@localhost:5433/zeitnot\n",
+        "postgres://zeitnot:zeitnot@localhost:5433/zeitnot\t",
     ],
 )
 def test_a_control_character_in_the_dsn_is_rejected_before_connecting(
@@ -457,7 +457,7 @@ def test_a_control_character_in_the_dsn_is_rejected_before_connecting(
     """
     import typer
 
-    from chesser.cli import _reject_control_characters
+    from zeitnot.cli import _reject_control_characters
 
     with pytest.raises(typer.Exit):
         _reject_control_characters(url)
@@ -468,25 +468,25 @@ def test_a_control_character_in_the_dsn_is_rejected_before_connecting(
 
 
 def test_an_ordinary_dsn_is_left_alone() -> None:
-    from chesser.cli import _reject_control_characters
+    from zeitnot.cli import _reject_control_characters
 
     # Must return rather than raise; anything else would break every run.
-    _reject_control_characters("postgres://u:p@localhost:5432/chesser")
+    _reject_control_characters("postgres://u:p@localhost:5432/zeitnot")
 
 
 def test_an_empty_port_is_rejected_rather_than_silently_meaning_5432(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """CHESSER_DB_PORT set below DATABASE_URL in the env file expands to
-    nothing, leaving "localhost:/chesser". libpq reads that as 5432 — usually
+    """ZEITNOT_DB_PORT set below DATABASE_URL in the env file expands to
+    nothing, leaving "localhost:/zeitnot". libpq reads that as 5432 — usually
     the very server the user moved off — so the failure blames credentials.
     """
     import typer
 
-    from chesser.cli import _reject_unexpanded_port
+    from zeitnot.cli import _reject_unexpanded_port
 
     with pytest.raises(typer.Exit):
-        _reject_unexpanded_port("postgres://c:c@localhost:/chesser?sslmode=disable")
+        _reject_unexpanded_port("postgres://c:c@localhost:/zeitnot?sslmode=disable")
 
     assert "empty port" in capsys.readouterr().err
 
@@ -497,10 +497,10 @@ def test_an_unexpanded_variable_is_rejected(
     """Single quotes round the value stop the shell substituting it."""
     import typer
 
-    from chesser.cli import _reject_unexpanded_port
+    from zeitnot.cli import _reject_unexpanded_port
 
     with pytest.raises(typer.Exit):
-        _reject_unexpanded_port("postgres://c:c@localhost:${CHESSER_DB_PORT}/chesser")
+        _reject_unexpanded_port("postgres://c:c@localhost:${ZEITNOT_DB_PORT}/zeitnot")
 
     assert "unexpanded variable" in capsys.readouterr().err
 
@@ -508,13 +508,13 @@ def test_an_unexpanded_variable_is_rejected(
 @pytest.mark.parametrize(
     "url",
     [
-        "postgres://c:c@localhost:5433/chesser",
+        "postgres://c:c@localhost:5433/zeitnot",
         # No port at all is legitimate and means 5432; only an empty one is not.
-        "postgres://c:c@localhost/chesser",
+        "postgres://c:c@localhost/zeitnot",
     ],
 )
 def test_a_well_formed_dsn_passes_the_port_check(url: str) -> None:
-    from chesser.cli import _reject_unexpanded_port
+    from zeitnot.cli import _reject_unexpanded_port
 
     _reject_unexpanded_port(url)
 
@@ -524,7 +524,7 @@ def test_stockfish_path_overrides_the_path_lookup(
 ) -> None:
     """Editing PATH is per-shell and easy to get wrong; the env file is where
     everything else lives."""
-    from chesser.engine import find_stockfish, resolve_command
+    from zeitnot.engine import find_stockfish, resolve_command
 
     binary = tmp_path / "sf"
     binary.write_text("#!/bin/sh\n")
@@ -538,7 +538,7 @@ def test_stockfish_path_overrides_the_path_lookup(
 def test_an_unset_stockfish_path_falls_back_to_the_plain_command(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from chesser.engine import resolve_command
+    from zeitnot.engine import resolve_command
 
     monkeypatch.delenv("STOCKFISH_PATH", raising=False)
     assert resolve_command() == "stockfish"
@@ -552,7 +552,7 @@ def test_a_stockfish_path_pointing_nowhere_names_the_variable(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """"not on PATH" would be a lie when the user set an explicit path."""
-    from chesser.engine import EngineError, require_stockfish
+    from zeitnot.engine import EngineError, require_stockfish
 
     monkeypatch.setenv("STOCKFISH_PATH", str(tmp_path / "absent"))
     with pytest.raises(EngineError) as excinfo:
@@ -566,7 +566,7 @@ def test_a_stockfish_path_pointing_nowhere_names_the_variable(
 def test_a_directory_is_not_mistaken_for_the_binary(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    from chesser.engine import find_stockfish
+    from zeitnot.engine import find_stockfish
 
     monkeypatch.setenv("STOCKFISH_PATH", str(tmp_path))
     assert find_stockfish() is None

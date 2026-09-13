@@ -15,9 +15,9 @@ from contextlib import contextmanager
 import pytest
 import responses
 
-from chesser import api
-from chesser.api import USER_AGENT, ChessComError, get_data
-from chesser.models import YearMonth
+from zeitnot import api
+from zeitnot.api import USER_AGENT, ChessComError, get_data
+from zeitnot.models import YearMonth
 
 TEST_DATE = YearMonth(year=2026, month="01")
 BASE = "http://chesscom.test/pub"
@@ -51,7 +51,7 @@ def serve() -> Iterator[responses.RequestsMock]:
         pytest.param(
             403,
             "Forbidden",
-            ["403", "chesser/0.1"],
+            ["403", "zeitnot/0.1"],
             # A client that sends no User-Agent is known to be blocked —
             # reachable on a first run with a perfectly valid username.
             id="403 mentions the client identity",

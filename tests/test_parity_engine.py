@@ -16,8 +16,9 @@ from typing import Any
 
 import pytest
 
-from chesser.db import DB
-from chesser.engine import (
+from tests.conftest import load_golden
+from zeitnot.db import DB
+from zeitnot.engine import (
     ANALYSIS_DEPTH,
     Engine,
     analyze_game,
@@ -26,8 +27,7 @@ from chesser.engine import (
     get_evaluation,
     normalize_eval,
 )
-from chesser.models import MoveAnalysis
-from tests.conftest import load_golden
+from zeitnot.models import MoveAnalysis
 
 
 def test_eval_helper_grid_matches_the_golden() -> None:

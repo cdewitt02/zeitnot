@@ -1,6 +1,6 @@
 # Python Rewrite — Phased Plan
 
-Plan for porting chesser from Go to Python without a flag day and without re-ingesting a single game.
+Plan for porting zeitnot from Go to Python without a flag day and without re-ingesting a single game.
 
 > **Executed 2026-08-29. Phases 0–7 are done and this document is now a record rather than a proposal.**
 > The decision and what it actually cost are in [ADR 0002](../adr/0002-python-rewrite.md); the outcome of
@@ -52,7 +52,7 @@ The two changes that *would* move the metric — full-stack Compose (readiness P
 double-analysis fix ([`ingestion-performance.md`](../ingestion-performance.md) §1) — are both deferred
 and both language-independent. Neither becomes easier or harder in Python.
 
-The one real user-visible gain is ergonomic, not temporal: `chesser data analyze magnus 2026 08` rather
+The one real user-visible gain is ergonomic, not temporal: `zeitnot data analyze magnus 2026 08` rather
 than `go run ./cmd/data analyze magnus 2026 08`, and a `pipx` / `uv tool install` route that does not
 require the user's toolchain to be a *build* toolchain.
 
@@ -129,7 +129,7 @@ eval-comparability defect unfixed.
 | # | Site | Defect | Reached on current corpus? |
 |---|---|---|---|
 | 1 | `internal/summary/generator.go:189` (`weakestPhase`) | `"Endgame was weakest"` is the `else` catch-all, so any *tie* between phase averages is misreported as an endgame weakness | No — 0 of 74 games |
-| 2 | ~~`internal/summary/generator.go:52-60` (`ExtractSummaryData`)~~ | ~~**A drawn game is summarized as a loss.**~~ **FIXED 2026-08-31** in `chesser/summary.py:43`, post-cutover as its own change, per the plan below. Covered by `tests/test_summary.py` | Was: yes — 5 of 74 |
+| 2 | ~~`internal/summary/generator.go:52-60` (`ExtractSummaryData`)~~ | ~~**A drawn game is summarized as a loss.**~~ **FIXED 2026-08-31** in `zeitnot/summary.py:43`, post-cutover as its own change, per the plan below. Covered by `tests/test_summary.py` | Was: yes — 5 of 74 |
 
 **Defect 2, found during Phase 3.** It is the more serious of the two, because unlike #1 it is
 *reached*: it is visible in the Game Summaries, in the embeddings built from them, in the win/loss/draw
@@ -222,7 +222,7 @@ Capture from the current Go tree, into `testdata/golden/`:
   (`classifier.go:49,247`).
 - **Query parsing** — `QueryParser.Parse` (`parser.go:188`) over the same question set.
 - **Assembled Prompts** — `QueryRouter.BuildPrompt` (`router.go:137`) for each question against the
-  live Corpus, with `CHESSER_DEBUG_PROMPT` doing most of the work already. See
+  live Corpus, with `ZEITNOT_DEBUG_PROMPT` doing most of the work already. See
   [`CONTEXT.md`](../../CONTEXT.md) for why the Assembled Prompt is a distinct term from the Game
   Summaries it contains — the parity targets in Phases 3 and 5 are different artifacts.
 
@@ -293,12 +293,12 @@ cutover, never in between.
 
 Project scaffolding and the two most mechanical packages.
 
-- `pyproject.toml`, a `chesser/` package mirroring `internal/` one-for-one, `ruff` + `mypy --strict`
+- `pyproject.toml`, a `zeitnot/` package mirroring `internal/` one-for-one, `ruff` + `mypy --strict`
   configured from the first commit. **Strict from the start**: gradual typing that is retrofitted never
   gets retrofitted, and the Go compiler is what is being replaced.
-- `chesser/models/` — the ~10 types in `internal/models/`, as dataclasses. `GameRecord`'s 20+ fields are
+- `zeitnot/models/` — the ~10 types in `internal/models/`, as dataclasses. `GameRecord`'s 20+ fields are
   the reason `mypy --strict` is not optional.
-- `chesser/config.py` — port `Resolve`, `NewChatModel`, `NewEmbedder`, `Summary`, `Preflight`,
+- `zeitnot/config.py` — port `Resolve`, `NewChatModel`, `NewEmbedder`, `Summary`, `Preflight`,
   `CheckIndex` (`internal/config/`). Provider defaults, the `OLLAMA_EMBED_MODEL` alias scoped to Ollama,
   the positional-argument precedence rule.
 
@@ -353,11 +353,11 @@ ingestion.
 
 **The phase where a rewrite can silently corrupt a corpus**, and the reason Phase 0 exists.
 
-- `chesser/engine.py` — `python-chess`'s `SimpleEngine` replaces `StartEngine`/`StopEngine`/
+- `zeitnot/engine.py` — `python-chess`'s `SimpleEngine` replaces `StartEngine`/`StopEngine`/
   `AnalyzePosition` (`stockfish.go:11,19,34`) outright. What must be ported *exactly* is the arithmetic:
   `getEvaluation`, `normalizeEval`, `classifyMove`, and the structure of `AnalyzeGame`, including its
   terminal-position branch.
-- `chesser/summary.py` — `ExtractSummaryData`, `GenerateSummary`, `classifyGameLength`, `weakestPhase`,
+- `zeitnot/summary.py` — `ExtractSummaryData`, `GenerateSummary`, `classifyGameLength`, `weakestPhase`,
   `detectPattern`. Pure functions over data, no I/O, no LLM.
 
 **Verification.** The Phase 0 goldens, byte for byte. A summary that differs by one space is a failure,
@@ -456,9 +456,9 @@ suite already asserts most of this; the temperature case is worth adding on both
 
 The largest phase, and the one with the least existing test coverage.
 
-- `chesser/search/` — `QueryParser.Parse`, `GameFilters.BuildWHERE`, `HybridSearcher.Search`. Port
+- `zeitnot/search/` — `QueryParser.Parse`, `GameFilters.BuildWHERE`, `HybridSearcher.Search`. Port
   `parser_test.go` and `hybrid_test.go` alongside.
-- `chesser/chat/` — `ClassifyQuery` and its five predicates, `QueryRouter` and its eleven `write*`
+- `zeitnot/chat/` — `ClassifyQuery` and its five predicates, `QueryRouter` and its eleven `write*`
   methods, `PromptBuilder`, and `Service` with history truncation and `AskStream`.
 
 **Verification.** The parity target is **the same Assembled Prompt, not the same answer.** Answers are
@@ -477,11 +477,11 @@ appears, it is a bug in the port, not a known quirk to excuse.
 
 ## Phase 6 — Entrypoints
 
-- `chesser data` — `analyze`, `refresh-stats`, `reembed` via `typer`. The worker pool becomes a
+- `zeitnot data` — `analyze`, `refresh-stats`, `reembed` via `typer`. The worker pool becomes a
   `ThreadPoolExecutor`: the workload is subprocess I/O, so the GIL is not a factor, but **the
   fail-fast semantics must be preserved** — first error cancels the run (`worker.go:165-175`), each
   worker owns its own engine process, and ingestion stays resumable via the already-analyzed filter.
-- `chesser chat` — the REPL, with `rich` for markdown rendering and `prompt_toolkit` for input.
+- `zeitnot chat` — the REPL, with `rich` for markdown rendering and `prompt_toolkit` for input.
   `/clear`, `exit`/`quit`, and Ctrl-C behave identically. Streaming-then-repaint becomes `rich.live`;
   the non-styled path (a pipe, a file, `NO_COLOR`) must still print raw markdown once with no cursor
   escapes.
@@ -534,7 +534,7 @@ what makes that safe.
   own verification. **Defect 2 is done** (2026-08-31); Defect 1 remains. Fixing either makes the stored corpus internally inconsistent until summaries are
   regenerated — which is cheap, since `ExtractSummaryData` needs only `games` and `moves`, both stored,
   so no Stockfish re-analysis is involved. That regeneration pass is itself a Phase 8 item, and it must
-  be followed by `chesser data reembed`: the summary text *is* the embedded text.
+  be followed by `zeitnot data reembed`: the summary text *is* the embedded text.
 
   **Defect 2 first.** It is reached on 5 of 74 games where #1 is reached on none, it corrupts the
   win/loss/draw tallies `prompts.py` derives, and it makes four of `detectPattern`'s ten verdicts
@@ -598,7 +598,7 @@ closed**, the same reasoning applies.
 ### Past Phase 4, the project is committed
 
 Phases 0 and 3 are worth doing whether or not the rewrite proceeds (see below), so the first genuinely
-irreversible investment is Phase 4. Beyond it, finish. A repo carrying a half-ported `chesser/` package
+irreversible investment is Phase 4. Beyond it, finish. A repo carrying a half-ported `zeitnot/` package
 that nobody deletes and nobody completes is a worse outcome than either finishing or having stopped at
 Phase 3 — it is the state this section exists to make impossible.
 

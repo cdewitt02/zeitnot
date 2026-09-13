@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from chesser.db import DB
-from chesser.models import Game, GameSummaryData, MoveAnalysis, PhaseStats, Player
-from chesser.summary import (
+from zeitnot.db import DB
+from zeitnot.models import Game, GameSummaryData, MoveAnalysis, PhaseStats, Player
+from zeitnot.summary import (
     classify_game_length,
     detect_pattern,
     extract_summary_data,

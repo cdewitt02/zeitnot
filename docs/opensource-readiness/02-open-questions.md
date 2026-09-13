@@ -1,4 +1,4 @@
-# chesser — Open Questions
+# zeitnot — Open Questions
 
 Decisions that need a maintainer call before the corresponding roadmap work starts. Each states what is being asked, why it is genuinely ambiguous rather than a default, what it blocks, and a recommendation.
 
@@ -101,7 +101,7 @@ argues for a strong troubleshooting section (P3-4) more than for a second inbox.
 Phase 8. *(It formerly blocked P2-1, which is now done — see below.)*
 
 **Why it is a real question.** `extract_summary_data` categorizes moves by phase using `i < OPENING_END`
-where `OPENING_END = 10` (`chesser/summary.py:15, 94`). But `i` indexes **plies** (individual half-moves),
+where `OPENING_END = 10` (`zeitnot/summary.py:15, 94`). But `i` indexes **plies** (individual half-moves),
 while the constant's comment still reads `# moves 1-10`. If "moves" means full moves, the boundary should
 be at ply 20, not 10 — meaning the "opening" phase currently covers only the first 5 full moves.
 
@@ -118,7 +118,7 @@ looks ambiguous." Three things are now known:
    now more plausible than it was.
 3. **The remedy is no longer vague.** The audit worried that fixing it would strand stored embeddings.
    That is still true, but the fix path is now a known, bounded, documented sequence: regenerate summaries
-   from stored `games` and `moves` (no Stockfish), then `chesser data reembed`. It is the same path the
+   from stored `games` and `moves` (no Stockfish), then `zeitnot data reembed`. It is the same path the
    Preserved Defect fixes need.
 
 **Why it still needs a maintainer, not a fix.** Only the author knows which was meant. It is a
@@ -139,7 +139,7 @@ Kept for traceability. None of these were *answered by a maintainer decision* �
 ### Q2 · Is `NUM_WORKERS` supposed to default to 4 or 8? — **Resolved**
 
 The audit found the README saying `8 (4 for less compute)` while `cmd/data/main.go:112` returned `4`. The
-rewrite settled it in the recommended direction: `chesser/cli.py` defaults to `4` and the README's
+rewrite settled it in the recommended direction: `zeitnot/cli.py` defaults to `4` and the README's
 environment table now says `4` plainly, with no parenthetical advice masquerading as a value. The
 *guidance* half of the recommendation is still outstanding and lives in P3-3.
 
@@ -148,10 +148,10 @@ not a doc fix. Nobody has asked for it.
 
 ### Q4 · Should `internal/engine` be promoted to a public package? — **Moot**
 
-The question was whether to publish chesser's Stockfish UCI wrapper for other Go chess projects to import.
+The question was whether to publish zeitnot's Stockfish UCI wrapper for other Go chess projects to import.
 That wrapper no longer exists: `python-chess`'s `SimpleEngine` replaced it during the rewrite, which is
 one of the two places the port genuinely deleted code rather than translating it. What remains in
-`chesser/engine.py` is CPL computation and move classification — chesser's own domain logic, with no
+`zeitnot/engine.py` is CPL computation and move classification — zeitnot's own domain logic, with no
 general-purpose UCI layer under it to promote.
 
 The recommendation's substance was achieved anyway, by a different route: the analyzer *is* testable now

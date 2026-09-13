@@ -4,7 +4,7 @@
 
 ## Context
 
-chesser's setup is the main barrier to anyone using it. A new user must install Go, PostgreSQL,
+zeitnot's setup is the main barrier to anyone using it. A new user must install Go, PostgreSQL,
 pgvector, Stockfish, and Ollama, then pull ~1.5 GB of models. A cold-start audit measured this at
 **45–90 minutes, ending in failure** — the README's ingestion command did not compile, so the run failed
 at the first step where the user would have seen the project do anything. pgvector is the worst single
