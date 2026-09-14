@@ -20,32 +20,41 @@ Ask questions about your chess games.
 Commands: /clear (reset conversation), exit/quit (leave)
 
 You: Which time control is my best, and why?
-  Thinking...
 
-Rapid, clearly — and the gap is bigger than most players expect.
+Based on the provided data, it appears that your best time control is blitz.
+You have a win rate of 53.4% in blitz games, which is 1.5% below your overall
+win rate. However, this is still a respectable performance, and the difference
+is relatively small.
 
-  Rapid    4 games    75.0% win rate    37.2 avg CPL
-  Blitz   32 games    34.4% win rate    98.9 avg CPL
-  Bullet  38 games    26.3% win rate   242.6 avg CPL
+Additionally, your average centipawn loss (CPL) is 152.9 in blitz games, which
+is 10.3 points better than your overall average CPL. This suggests that you are
+able to make more accurate decisions under the time pressure of blitz, which is
+a skill that is valuable in many types of chess.
 
-Your rapid centipawn loss is 37, which is genuinely strong. In bullet it is
-243 — nearly seven times worse. That is not a different opponent pool, it is
-the same player with less time to see.
+It's worth noting that while you have a strong performance in blitz, you also
+have a strong performance in rapid games, with a 100.0% win rate in a single
+game (Game 9). However, the sample size is too small to draw any reliable
+conclusions.
 
-The tell is where the mistakes land: your bullet games show blunders spread
-through the middlegame, while your rapid games mostly stay clean until the
-endgame. You are not losing bullet games on preparation. You are losing them
-on calculation you do not have time to do.
+The fact that you perform less well in bullet games compared to blitz and rapid
+games suggests that you may struggle with the extremely short time controls.
+The bullet game with the lowest win rate and highest average CPL is Game 2,
+where you lost as white in a long game. This may indicate that the time
+pressure and complexity of the game overwhelmed you, and that you need more
+time to think through your moves.
 
-If the goal is rating, play more rapid. If the goal is improvement, your
-bullet games are the cheapest source of tactical mistakes to review.
+Overall, while there may be some variation in your performance depending on the
+specific time control, blitz appears to be your strongest suit.
 
 You: exit
 Goodbye!
 ```
 
-That answer is built from 74 real analyzed games. Every number in it comes from
-your own database.
+That answer is built from 195 real analyzed games, and every number in it comes
+from your own database. It is an **unedited** session on the configuration the
+banner names — `llama3.2`, running locally, the default. A 3B model reasons
+about as well as a 3B model reasons; a hosted one writes better prose over the
+same numbers. What does not vary is where the numbers come from.
 
 ## Quick start
 
@@ -77,9 +86,15 @@ zeitnot data analyze cdew4 2026 01
 zeitnot chat cdew4
 ```
 
-**Expect fifteen minutes minimum before a first answer.** Ingestion runs
-Stockfish over every move at roughly a second per game, and that dominates the
-run.
+**The wait is the download, not the analysis.** A first run pulls about 2.7 GB
+once — the Postgres image (443 MB) and the two Ollama models (2.0 GB and
+270 MB) — and how long that takes is between you and your connection. The
+analysis is the fast part: one real month, 195 games, took **85 seconds** with
+`NUM_WORKERS=4` pinned to four cores, embedding included. It does saturate those
+cores while it runs.
+
+Chess.com archives games one month at a time, so step 5 is per month. Two or
+three months is enough for the aggregates to say anything.
 
 Prefer hosted models, or already have Postgres on port 5432? See
 [Providers](docs/providers.md) and [Configuration](docs/configuration.md).
@@ -164,7 +179,10 @@ quality reason to reach for a hosted API first. Switching the chat provider late
 is cheap and reversible — the index is untouched.
 
 Selecting a hosted provider **sends your game summaries and username to a third
-party**; opponents' usernames are stripped before anything leaves the machine.
+party**. Opponents' usernames are not among them. They are stripped when a game
+is analyzed, and withheld again when the prompt is assembled — so a corpus
+analyzed by an older version is covered too, without re-ingesting.
+`tests/test_router_prompt.py` asserts it rather than leaving it to review.
 
 **[Providers, and how to choose →](docs/providers.md)**
 

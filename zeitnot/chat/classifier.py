@@ -146,6 +146,32 @@ def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
     return any(keyword in text for keyword in keywords)
 
 
+# Enough to tell that a question is *about* openings, whether or not it names
+# one. "opening" also matches "openings", so only the distinct stems are listed.
+_OPENING_TOPIC_KEYWORDS = (
+    "opening",
+    "repertoire",
+    "defense",
+    "defence",
+    "gambit",
+    "variation",
+)
+
+
+def mentions_openings(question: str) -> bool:
+    """Whether the question is about openings at all.
+
+    Deliberately separate from `classify_query`. The type decides which context
+    the router assembles; this decides whether one extra block belongs in it.
+    Folding it into classification would reroute every question containing the
+    word "defense" and change the prompt wholesale — see
+    `QueryRouter._write_player_stats` for what it is used for.
+    """
+    if extract_mentioned_openings(question):
+        return True
+    return _contains_any(question.lower(), _OPENING_TOPIC_KEYWORDS)
+
+
 # Common chess openings for detection. A tuple, not a set: the order is the
 # output order, and a set would make it depend on hashing.
 OPENING_PATTERNS = (

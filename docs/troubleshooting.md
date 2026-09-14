@@ -21,10 +21,14 @@ Either the username is misspelled or that player has no games archived for that
 month. A 404 cannot tell those apart, which is why the message names both.
 
 **Ingestion is slow**
-Expect roughly a second per game — every move is searched twice by Stockfish,
-which dominates the run. `NUM_WORKERS` (default 4) is the knob; each worker
-spawns its own Stockfish process, so raising it past your core count will not
-help.
+For scale: one month — 195 games — takes about **85 seconds** at the default
+`NUM_WORKERS=4`, pinned to four cores. If you are far off that, `NUM_WORKERS` is
+the knob; each worker spawns its own Stockfish process, so raising it past your
+core count will not help, and Ollama holds the embedding model resident
+alongside it.
+
+The download is the part that takes real time, and it happens once: about 2.7 GB
+across the Postgres image and the two Ollama models.
 
 ---
 
@@ -58,6 +62,12 @@ before the games are fetched, so a missing engine costs nothing.
 The file exists and is executable but is not a working UCI engine — a binary for
 another architecture, or a wrapper script. A `PATH` lookup cannot tell those
 apart, which is why doctor starts the process rather than only finding it.
+
+**`Error: this database has no corpus yet`**
+`zeitnot chat` reads; it does not create tables. Nothing has been ingested into
+the database it is pointed at — either you have not run `zeitnot data analyze`,
+or `DATABASE_URL` names a different database than the one you analyzed into.
+`zeitnot doctor` prints which one is in use.
 
 ---
 
@@ -197,6 +207,28 @@ after your first question.
 role set to `openai`. Resolved before the welcome banner, so an auth failure is
 never revealed only after your first question. Note that a chat provider is
 needed only by `zeitnot chat`; `zeitnot data analyze` runs without one.
+
+---
+
+## Answers
+
+**The prompt says `Game endings: not available`**
+The per-ending breakdown is withheld when the stored aggregate predates
+2026-08-31. Chess.com writes terminations as `"Bolzman0 won by resignation"`, so
+before that date every bucket was keyed by an opponent's username — which never
+aggregated, and would leave the machine with a hosted Chat Provider. Those keys
+cannot be repaired after the fact (the player's own result is not in the
+aggregate), so the section is dropped whole rather than partly.
+
+Rebuild it:
+
+```bash
+zeitnot data refresh-stats <username>
+```
+
+Retrieved games are handled the same way but need no action: a summary written
+before the fix has its termination line dropped at assembly, and re-ingesting
+that month restores it.
 
 ---
 

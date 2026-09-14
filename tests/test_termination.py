@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from zeitnot.models import normalize_termination
+from zeitnot.models.game import is_normalized_termination
 
 
 @pytest.mark.parametrize(
@@ -85,3 +86,48 @@ def test_the_same_method_aggregates_across_opponents() -> None:
     resignation must land in one bucket, not nine."""
     keys = {normalize_termination(f"opponent{i} won by resignation", "lost") for i in range(9)}
     assert keys == {"lost by resignation"}
+
+
+# ---------- the read-side companion ----------
+
+
+@pytest.mark.parametrize(
+    "termination",
+    [
+        "Bolzman0 won by resignation",
+        "someone won on time",
+        "someone won - game abandoned",
+        "Game drawn by agreement",
+        "Game drawn by timeout vs insufficient material",
+        "TotallyUnexpected format from a future API",
+        "",
+    ],
+)
+@pytest.mark.parametrize("result", ["won", "lost", "drew"])
+def test_every_normalized_output_is_recognized_as_normalized(termination: str, result: str) -> None:
+    """Ties the two functions together so they cannot drift apart.
+
+    `is_normalized_termination` decides whether a stored aggregate is safe to put
+    in a prompt. If it ever answers "no" to something this module produces, the
+    Game endings section disappears for a corpus that is perfectly fine; if it
+    answers "yes" to a raw string, a handle ships. A prefix list maintained by
+    hand beside a function that builds strings is exactly where that drifts.
+    """
+    out = normalize_termination(termination, result)
+    if out:
+        assert is_normalized_termination(out), out
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bolzman0 won by resignation",
+        "AlexanderZapata37811 won by checkmate",
+        "xX_SomeHandle_Xx won on time",
+        "Game drawn by agreement",  # anonymous, but still not a normalized key
+    ],
+)
+def test_a_raw_chesscom_string_is_not_mistaken_for_a_normalized_one(raw: str) -> None:
+    """What the guard is for: a `player_stats` row computed before P0-8 landed
+    still holds these, and they are indistinguishable from good keys by type."""
+    assert not is_normalized_termination(raw)

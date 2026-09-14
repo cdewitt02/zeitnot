@@ -35,9 +35,9 @@ rather than deleted, so the audit's findings stay traceable to their resolution.
 | P2-7 Linting (half) | **Done** | `ruff check` in CI. *Dependency vulnerability scanning is still open* — see P2-7 below |
 | P4-3 Promote the engine package | **Moot** | The reusable part was the UCI wrapper, and that is now `python-chess`'s job, not ours |
 | P4-4 Swappable LLM backend | **Done** | `zeitnot/llm/` protocols with three adapters and a conformance suite |
-| P0-8 Opponent usernames | **Done** 2026-08-31 | `normalize_termination` in `zeitnot/models/game.py`, applied at both leak paths; `tests/test_termination.py` |
+| P0-8 Opponent usernames | **Done** 2026-08-31, **completed** 2026-09-14 | `normalize_termination` in `zeitnot/models/game.py` at the two write paths; two further paths closed at assembly 2026-09-14 — see the amendment below. `tests/test_termination.py`, `tests/test_router_prompt.py` |
 | P0-2 LICENSE | **Done** 2026-08-31 | MIT; `pyproject.toml` metadata corrected from `UNLICENSED` |
-| P3-5 README demo | **Done** 2026-08-31 | Real session at the top, banner copied from `zeitnot/repl.py` |
+| P3-5 README demo | **Done** 2026-08-31, **replaced** 2026-09-14 | Real session at the top. The first one was not reproducible on the model its banner named — see the amendment below |
 | P3-1 Docker Compose | **Partly done** 2026-08-31 | `pgvector/pgvector:pg17` + an init script. This is the *database half only* — see the corrected entry below |
 | P1-4 Issue/PR templates | **Done** 2026-08-31 | `.github/ISSUE_TEMPLATE/`, provider fields required |
 | P2-5 Credential redaction | **Done** 2026-08-31 | `redact_secrets`, plus a filter on psycopg's own pool logger — the path that actually leaked |
@@ -113,6 +113,24 @@ handle might still hide.
 **Operator action for an existing corpus.** `zeitnot data refresh-stats <username>` rebuilds the
 aggregates. Summaries written before the change keep the old text until regenerated, then re-embedded.
 A fresh clone is unaffected.
+
+**Amended 2026-09-14 — there were four paths, not two, and "operator action" was the wrong remedy.**
+Two more were found by dumping a real assembled prompt with `ZEITNOT_DEBUG_PROMPT=1` and grepping it
+against the 193 opponent handles in the corpus, which is the check this entry should have ended with:
+
+3. **The retrieved-game label.** `router.py` prefixed every retrieved game with `[vs USERNAME]`, and the
+   instruction block told the model to cite games by that handle — which both local models tested duly
+   did, in their answers. Attached at assembly rather than stored, so nothing about the corpus revealed
+   it. Now `Game 1:`, with `Opponent rating` (already in the summary) as the discriminator.
+4. **Both stored paths, on any corpus analyzed before 2026-08-31.** Normalization runs when a row is
+   *written*, so the aggregate keys and the `Termination type:` line in `summary_text` still hold raw
+   strings, and no session can repair them. Making that the operator's problem meant the promise held
+   only for people who had read this file. Both are now withheld at assembly: the Game endings section
+   is dropped whole if any key is unnormalized, and a stale termination line is dropped from the summary.
+
+The lesson generalizes past this item: **a guarantee enforced only at write time is not a guarantee**,
+because the corpus outlives the code that wrote it. `docs/codebase-invariants.md` carries it as an
+invariant now, and `tests/test_router_prompt.py` asserts it without needing a database.
 
 ---
 
@@ -356,8 +374,14 @@ a real answer. A plain fenced code block is 90% of the value at 10% of the effor
 
 **Effort.** S.
 
-**Risk/tradeoff.** Needs a working setup and a real dataset. **Redact opponent usernames as well as the
-player's** — P0-8 is unfixed, so a real transcript may contain third-party handles.
+**Risk/tradeoff.** Needs a working setup and a real dataset. **Check a real transcript for third-party
+handles before pasting it.** P0-8 is closed and the prompt no longer carries them (see its amendment
+above), but the ingestion progress output still prints `<white> vs <black>` per game.
+
+**Amended 2026-09-14.** The demo that landed was not reproducible on the configuration its own banner
+named: the prose was better than `llama3.2` produces, and on a real corpus that model answered the same
+question wrongly. Replaced with an unedited session on the default, with the model named underneath.
+A demo that oversells is worse than no demo — the first thing a reader does is run it.
 
 ---
 

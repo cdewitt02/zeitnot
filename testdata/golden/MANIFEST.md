@@ -102,6 +102,29 @@ this does not affect CI. If you have both locally, expect the byte-for-byte
 summary assertions to fail on drawn games and nothing else. Live coverage of the
 fixed behavior is in `tests/test_summary.py`.
 
+**`prompts/` is stale wholesale as of 2026-09-14.** The assembled prompt was
+changed deliberately, in four places:
+
+1. Retrieved games are labelled `Game 1:` rather than `1. [vs OPPONENT]`, and
+   the instruction to cite the opponent by username is gone.
+2. A stored summary or aggregate that predates termination normalization has the
+   offending part withheld at assembly rather than echoed.
+3. `STRONGEST`/`WEAKEST` on a dimension became `HIGHEST`/`LOWEST win rate`, with
+   the game count and the CPL alongside, and a note when the two measures
+   disagree. Buckets under three games lose their comparison string.
+4. Opening aggregates are written whenever the question is about openings, not
+   only when it classifies as comparative or recommendation.
+
+These files therefore record the *previous* prompt. That is not a reason to
+recapture them on its own — the corpus fingerprint already makes them skip
+everywhere — but it does mean they are no longer a description of current
+behavior. Live coverage of all four is in `tests/test_router_prompt.py`, which
+needs neither a database nor a golden and runs in CI.
+
+Classification is deliberately unchanged, so `classification.json` is still
+valid: point 4 keys off a separate predicate (`mentions_openings`) rather than
+rerouting the question.
+
 ## Regenerating — you cannot, yet
 
 **`legacy/` and its `cmd/golden` capture tool were deleted after the port was validated**

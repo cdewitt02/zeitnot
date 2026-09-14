@@ -318,6 +318,20 @@ class DB:
         old, self._pool = self._pool, self._open_pool()
         old.close()
 
+    def corpus_is_initialized(self) -> bool:
+        """Whether `migrate` has ever run against this database.
+
+        Read-only, and asked by the commands that do *not* migrate. `zeitnot
+        chat` is the one people reach for first — before analyzing anything, or
+        pointed at a database that was never ingested into — and without this it
+        answered the first question with a raw `relation "player_stats" does not
+        exist`, then printed "Thinking..." and nothing else.
+        """
+        with self.cursor() as cur:
+            cur.execute("SELECT to_regclass('games') IS NOT NULL")
+            row = cur.fetchone()
+        return bool(row and row[0])
+
     # ---------- games ----------
 
     def save_game(self, game: GameRecord) -> None:

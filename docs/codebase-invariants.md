@@ -8,6 +8,17 @@ Context you need before touching the prompt path, the provider adapters, or
 
 A few properties are easy to break with a change that looks like a cleanup:
 
+- **No opponent's Chess.com username reaches the assembled prompt.** A hosted
+  Chat Provider receives that text verbatim, and the opponent never chose this
+  tool. Normalization at write time is not sufficient on its own: a corpus
+  analyzed before 2026-08-31 still has handles in stored `summary_text` and in
+  `player_stats.stats_by_termination`, so `zeitnot/chat/router.py` withholds
+  both at assembly. `tests/test_router_prompt.py` asserts it for every query
+  type — it is the only coverage that runs without a database.
+- **No superlative rests on a sample that cannot support it.** Below
+  `MIN_GAMES_FOR_COMPARISON` a bucket keeps its numbers and loses its comparison
+  string. A one-game bucket rendered as "100.0% win rate (45.1% ABOVE overall)"
+  is true and was read as a finding by every model tried.
 - **Every dict that reaches the assembled prompt is iterated sorted.** The
   prompt must be reproducible across runs;
   [`multi-provider/03-eval-plan.md`](multi-provider/03-eval-plan.md) depends on
