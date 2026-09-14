@@ -2,8 +2,20 @@
 
 **This module's output is the parity target for the whole rewrite.** Every input
 the chat provider receives is the assembled prompt, so a matching prompt leaves
-nothing downstream for the port to have gotten wrong. It is checked byte for
-byte against the Phase 0 goldens for the twelve frozen questions.
+nothing downstream for the port to have gotten wrong. It was checked byte for
+byte against the Phase 0 goldens for the twelve frozen questions — **until
+2026-09-14**, when the prompt was deliberately changed to stop leaking opponent
+usernames and to stop crowning a bucket on win rate alone. Those goldens now
+record the previous text; see `testdata/golden/MANIFEST.md`.
+
+Two things this module must not do, both of which it did:
+
+- **No opponent username reaches the prompt.** A hosted chat provider receives
+  this text verbatim, and the opponent never agreed to that. See
+  `_write_game_context`.
+- **No superlative rests on a percentage the sample cannot support.** Anything
+  under `MIN_GAMES_FOR_COMPARISON` games gets its numbers reported and its
+  comparison withheld.
 
 Two consequences run through the file:
 
@@ -23,11 +35,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from io import StringIO
 
-from zeitnot.chat.classifier import QueryType, classify_query, extract_mentioned_openings
+from zeitnot.chat.classifier import (
+    QueryType,
+    classify_query,
+    extract_mentioned_openings,
+    mentions_openings,
+)
 from zeitnot.db import DB
 from zeitnot.db.records import SimilarGameResult
 from zeitnot.models import ColorStats, OpeningStats, PlayerStats, RatingBandStats, TimeClassStats
+from zeitnot.models.game import is_normalized_termination
 from zeitnot.search.hybrid import HybridSearcher, SearchQuery
+from zeitnot.summary import strip_unnormalized_termination
 
 
 def format_win_rate_comparison(rate: float, baseline: float) -> str:
@@ -54,6 +73,46 @@ def format_cpl_comparison(cpl: float, baseline: float) -> str:
     return "(≈ same as overall)"
 
 
+# Below this many games a percentage is noise. What gets withheld from a small
+# bucket is the *comparison*, never the row: the count and the rate are real,
+# and dropping them would read as missing data. A one-game bucket rendered as
+# "100.0% win rate (45.1% ABOVE overall)" is a true sentence that every model
+# tested read as a finding.
+MIN_GAMES_FOR_COMPARISON = 3
+
+
+def format_games(count: int) -> str:
+    """ "1 game", not "1 games". It appears in every dimensional row."""
+    return "1 game" if count == 1 else f"{count} games"
+
+
+def format_dimension_row(
+    label: str,
+    games: int,
+    win_rate: float,
+    avg_cpl: float,
+    overall_win_rate: float,
+    overall_cpl: float,
+) -> str:
+    """One row of a dimensional breakdown — by color, by time control.
+
+    Identical in shape for every dimension, so the small-sample rule is written
+    once and cannot be applied to one breakdown and forgotten on the next.
+    """
+    if games < MIN_GAMES_FOR_COMPARISON:
+        return (
+            f"- {label}: {format_games(games)}, {win_rate:.1f}% win rate, "
+            f"{avg_cpl:.1f} avg CPL "
+            f"(only {format_games(games)} - too few to compare)\n"
+        )
+    return (
+        f"- {label}: {format_games(games)}, {win_rate:.1f}% win rate "
+        f"{format_win_rate_comparison(win_rate, overall_win_rate)}, "
+        f"{avg_cpl:.1f} avg CPL "
+        f"{format_cpl_comparison(avg_cpl, overall_cpl)}\n"
+    )
+
+
 @dataclass(slots=True)
 class QueryContext:
     """Everything gathered to answer one question."""
@@ -63,6 +122,9 @@ class QueryContext:
     games: list[SimilarGameResult] = field(default_factory=list)
     filters: list[str] = field(default_factory=list)
     mentioned_openings: list[str] = field(default_factory=list)
+    # Whether the question is about openings, which is not the same as which
+    # type it is. See QueryRouter._write_player_stats.
+    about_openings: bool = False
 
 
 class QueryRouter:
@@ -84,6 +146,7 @@ class QueryRouter:
         qctx = QueryContext(
             query_type=query_type,
             mentioned_openings=extract_mentioned_openings(question),
+            about_openings=mentions_openings(question),
             player_stats=self._db.get_player_stats(self._username),
         )
 
@@ -126,7 +189,7 @@ class QueryRouter:
 
         stats = qctx.player_stats
         if stats is not None and stats.total_games > 0:
-            self._write_player_stats(sb, stats, qctx.query_type)
+            self._write_player_stats(sb, stats, qctx.query_type, qctx.about_openings)
 
             if qctx.query_type is QueryType.TREND:
                 self._write_trend_stats(sb, stats)
@@ -143,7 +206,13 @@ class QueryRouter:
 
     # ---------- player overview ----------
 
-    def _write_player_stats(self, sb: StringIO, stats: PlayerStats, query_type: QueryType) -> None:
+    def _write_player_stats(
+        self,
+        sb: StringIO,
+        stats: PlayerStats,
+        query_type: QueryType,
+        about_openings: bool = False,
+    ) -> None:
         sb.write("PLAYER OVERVIEW (from all analyzed games):\n")
         sb.write(f"- Total games analyzed: {stats.total_games}\n")
 
@@ -161,10 +230,14 @@ class QueryRouter:
             for color in sorted(stats.stats_by_color):
                 s = stats.stats_by_color[color]
                 sb.write(
-                    f"- As {color}: {s.games} games, {s.win_rate:.1f}% win rate "
-                    f"{format_win_rate_comparison(s.win_rate, overall_win_rate)}, "
-                    f"{s.avg_cpl:.1f} avg CPL "
-                    f"{format_cpl_comparison(s.avg_cpl, stats.avg_cpl)}\n"
+                    format_dimension_row(
+                        f"As {color}",
+                        s.games,
+                        s.win_rate,
+                        s.avg_cpl,
+                        overall_win_rate,
+                        stats.avg_cpl,
+                    )
                 )
             white = stats.stats_by_color.get("white")
             black = stats.stats_by_color.get("black")
@@ -176,36 +249,66 @@ class QueryRouter:
             for tc in sorted(stats.stats_by_time_class):
                 s = stats.stats_by_time_class[tc]
                 sb.write(
-                    f"- {tc}: {s.games} games, {s.win_rate:.1f}% win rate "
-                    f"{format_win_rate_comparison(s.win_rate, overall_win_rate)}, "
-                    f"{s.avg_cpl:.1f} avg CPL "
-                    f"{format_cpl_comparison(s.avg_cpl, stats.avg_cpl)}\n"
+                    format_dimension_row(
+                        tc,
+                        s.games,
+                        s.win_rate,
+                        s.avg_cpl,
+                        overall_win_rate,
+                        stats.avg_cpl,
+                    )
                 )
             self._write_time_control_insights(sb, stats.stats_by_time_class)
 
         # Comparative and recommendation questions get the extra dimensions.
         # The others do not, to keep the prompt from burying the answer.
-        if query_type in (QueryType.COMPARATIVE, QueryType.RECOMMENDATION):
-            if stats.stats_by_rating_band:
-                sb.write("\nPerformance by opponent rating:\n")
-                for band in sorted(stats.stats_by_rating_band):
-                    s = stats.stats_by_rating_band[band]
+        wide = query_type in (QueryType.COMPARATIVE, QueryType.RECOMMENDATION)
+        if wide and stats.stats_by_rating_band:
+            sb.write("\nPerformance by opponent rating:\n")
+            for band in sorted(stats.stats_by_rating_band):
+                s = stats.stats_by_rating_band[band]
+                if s.games < MIN_GAMES_FOR_COMPARISON:
                     sb.write(
-                        f"- vs {band}: {s.games} games, {s.win_rate:.1f}% win rate "
+                        f"- vs {band}: {format_games(s.games)}, "
+                        f"{s.win_rate:.1f}% win rate "
+                        f"(only {format_games(s.games)} - too few to compare)\n"
+                    )
+                else:
+                    sb.write(
+                        f"- vs {band}: {format_games(s.games)}, "
+                        f"{s.win_rate:.1f}% win rate "
                         f"{format_win_rate_comparison(s.win_rate, overall_win_rate)}\n"
                     )
-                self._write_rating_band_insights(sb, stats.stats_by_rating_band)
+            self._write_rating_band_insights(sb, stats.stats_by_rating_band)
 
-            if stats.stats_by_opening:
-                self._write_opening_stats(sb, stats.stats_by_opening, overall_win_rate)
+        # Opening aggregates follow the *question*, not its type. "What openings
+        # do I lose with most often?" classifies as specific_games — retrieval
+        # only — so the one block that could answer it was omitted and the answer
+        # got assembled from whichever ten games came back. Classification is
+        # untouched; this is an extra signal, not a reroute.
+        if stats.stats_by_opening and (wide or about_openings):
+            self._write_opening_stats(sb, stats.stats_by_opening, overall_win_rate)
 
-        # Useful for questions about flagging, checkmates, and so on.
+        # Useful for questions about flagging, checkmates, and so on — and the
+        # one section whose *keys* come from Chess.com rather than from this
+        # codebase. Terminations are normalized when a stats row is written, so
+        # a row written before that landed still reads "2DBEACH won by
+        # resignation". Refusing the whole section is the only safe response: the
+        # keys cannot be repaired here (the player's own result is not in the
+        # aggregate), and dropping them one at a time would leave percentages
+        # that no longer sum. `zeitnot data refresh-stats <username>` rebuilds it.
         if stats.stats_by_termination:
-            sb.write("\nGame endings:\n")
-            for term in sorted(stats.stats_by_termination):
-                count = stats.stats_by_termination[term]
-                pct = count / stats.total_games * 100
-                sb.write(f"- {term}: {count} ({pct:.1f}%)\n")
+            if all(is_normalized_termination(term) for term in stats.stats_by_termination):
+                sb.write("\nGame endings:\n")
+                for term in sorted(stats.stats_by_termination):
+                    count = stats.stats_by_termination[term]
+                    pct = count / stats.total_games * 100
+                    sb.write(f"- {term}: {count} ({pct:.1f}%)\n")
+            else:
+                sb.write(
+                    "\nGame endings: not available - the stored breakdown predates the "
+                    "current format and was withheld\n"
+                )
 
         sb.write("\n")
 
@@ -231,53 +334,80 @@ class QueryRouter:
     def _write_time_control_insights(
         self, sb: StringIO, time_classes: dict[str, TimeClassStats]
     ) -> None:
+        """Highest and lowest win rate — deliberately not "strongest" and "weakest".
+
+        The old wording crowned a bucket on win rate alone and every model tested
+        repeated the verdict as given. On a real corpus that named a 17-game
+        bullet sample at 243 CPL the player's STRONGEST time control, over 176
+        blitz games at 154. Win rate and accuracy are two findings; which one
+        decides "best" is the reader's call, not this function's — so it reports
+        both and says so when they disagree.
+        """
         if len(time_classes) < 2:
             return
 
-        best_tc = worst_tc = ""
-        best_rate, worst_rate = -1.0, 101.0
-        min_games = 3
+        best: tuple[str, TimeClassStats] | None = None
+        worst: tuple[str, TimeClassStats] | None = None
 
         for tc in sorted(time_classes):
             s = time_classes[tc]
-            if s.games < min_games:
+            if s.games < MIN_GAMES_FOR_COMPARISON:
                 continue
-            if s.win_rate > best_rate:
-                best_rate, best_tc = s.win_rate, tc
-            if s.win_rate < worst_rate:
-                worst_rate, worst_tc = s.win_rate, tc
+            if best is None or s.win_rate > best[1].win_rate:
+                best = (tc, s)
+            if worst is None or s.win_rate < worst[1].win_rate:
+                worst = (tc, s)
 
-        if best_tc and worst_tc and best_tc != worst_tc:
-            sb.write(f"  → STRONGEST time control: {best_tc} ({best_rate:.1f}% win rate)\n")
-            sb.write(f"  → WEAKEST time control: {worst_tc} ({worst_rate:.1f}% win rate)\n")
-            sb.write(f"  → Difference: {best_rate - worst_rate:.1f} percentage points\n")
+        if best is None or worst is None or best[0] == worst[0]:
+            return
+
+        best_tc, b = best
+        worst_tc, w = worst
+        floor = MIN_GAMES_FOR_COMPARISON
+        sb.write(
+            f"  → HIGHEST win rate (min {floor} games): {best_tc} - {b.win_rate:.1f}% "
+            f"over {format_games(b.games)}, {b.avg_cpl:.1f} avg CPL\n"
+        )
+        sb.write(
+            f"  → LOWEST win rate (min {floor} games): {worst_tc} - {w.win_rate:.1f}% "
+            f"over {format_games(w.games)}, {w.avg_cpl:.1f} avg CPL\n"
+        )
+        sb.write(f"  → Difference: {b.win_rate - w.win_rate:.1f} percentage points\n")
+        if b.avg_cpl > w.avg_cpl:
+            sb.write(
+                f"  → NOTE: {best_tc} has the higher win rate but the WORSE accuracy "
+                f"({b.avg_cpl:.1f} vs {w.avg_cpl:.1f} avg CPL, lower is better), so it is "
+                f"not simply the stronger time control\n"
+            )
 
     def _write_rating_band_insights(self, sb: StringIO, bands: dict[str, RatingBandStats]) -> None:
         if len(bands) < 2:
             return
 
-        best_band = worst_band = ""
-        best_rate, worst_rate = -1.0, 101.0
-        min_games = 3
+        best: tuple[str, RatingBandStats] | None = None
+        worst: tuple[str, RatingBandStats] | None = None
 
         for band in sorted(bands):
             s = bands[band]
-            if s.games < min_games:
+            if s.games < MIN_GAMES_FOR_COMPARISON:
                 continue
-            if s.win_rate > best_rate:
-                best_rate, best_band = s.win_rate, band
-            if s.win_rate < worst_rate:
-                worst_rate, worst_band = s.win_rate, band
+            if best is None or s.win_rate > best[1].win_rate:
+                best = (band, s)
+            if worst is None or s.win_rate < worst[1].win_rate:
+                worst = (band, s)
 
-        if best_band and worst_band:
-            sb.write(
-                f"  → BEST performance vs: {best_band} rated opponents "
-                f"({best_rate:.1f}% win rate)\n"
-            )
-            sb.write(
-                f"  → WORST performance vs: {worst_band} rated opponents "
-                f"({worst_rate:.1f}% win rate)\n"
-            )
+        if best is None or worst is None or best[0] == worst[0]:
+            return
+
+        floor = MIN_GAMES_FOR_COMPARISON
+        sb.write(
+            f"  → HIGHEST win rate (min {floor} games): vs {best[0]} rated opponents - "
+            f"{best[1].win_rate:.1f}% over {format_games(best[1].games)}\n"
+        )
+        sb.write(
+            f"  → LOWEST win rate (min {floor} games): vs {worst[0]} rated opponents - "
+            f"{worst[1].win_rate:.1f}% over {format_games(worst[1].games)}\n"
+        )
 
     def _write_opening_stats(
         self, sb: StringIO, openings: dict[str, OpeningStats], overall_win_rate: float
@@ -293,36 +423,65 @@ class QueryRouter:
         sb.write("\nMost played openings:\n")
         for eco, s in entries[:5]:
             name = s.opening_name or eco
-            sb.write(
-                f"- {name} ({eco}): {s.games} games, {s.win_rate:.1f}% win rate "
-                f"{format_win_rate_comparison(s.win_rate, overall_win_rate)}, "
-                f"{s.avg_cpl:.1f} CPL\n"
-            )
+            record = f"{s.wins}W-{s.losses}L-{s.draws}D"
+            if s.games < MIN_GAMES_FOR_COMPARISON:
+                sb.write(
+                    f"- {name} ({eco}): {format_games(s.games)}, {record}, "
+                    f"{s.win_rate:.1f}% win rate, {s.avg_cpl:.1f} CPL "
+                    f"(only {format_games(s.games)} - too few to compare)\n"
+                )
+            else:
+                sb.write(
+                    f"- {name} ({eco}): {format_games(s.games)}, {record}, "
+                    f"{s.win_rate:.1f}% win rate "
+                    f"{format_win_rate_comparison(s.win_rate, overall_win_rate)}, "
+                    f"{s.avg_cpl:.1f} CPL\n"
+                )
 
-        # Best and worst, over openings with enough games to mean anything.
+        # Ordered by losses, which is a different question from the one above
+        # and one the corpus is regularly asked: "what do I lose with most
+        # often". Without this the answer was assembled from whichever games
+        # retrieval happened to return. A count needs no sample-size caveat —
+        # three losses in three games really are three losses.
+        by_losses = sorted(entries, key=lambda item: (-item[1].losses, item[0]))
+        if by_losses and by_losses[0][1].losses > 0:
+            sb.write("\nOpenings by losses (most first):\n")
+            for eco, s in by_losses[:5]:
+                if s.losses == 0:
+                    break
+                name = s.opening_name or eco
+                sb.write(
+                    f"- {name} ({eco}): {s.losses} of the player's losses, "
+                    f"over {format_games(s.games)} ({s.win_rate:.1f}% win rate)\n"
+                )
+
+        # Highest and lowest win rate, over openings with enough games to mean
+        # anything. Not "strongest" and "weakest" — see the time-control
+        # equivalent for why that wording had to go.
         best: tuple[str, OpeningStats] | None = None
         worst: tuple[str, OpeningStats] | None = None
         for eco, s in entries:
-            if s.games < 3:
+            if s.games < MIN_GAMES_FOR_COMPARISON:
                 continue
             if best is None or s.win_rate > best[1].win_rate:
                 best = (eco, s)
             if worst is None or s.win_rate < worst[1].win_rate:
                 worst = (eco, s)
 
-        if best is not None and worst is not None:
+        if best is not None and worst is not None and best[0] != worst[0]:
             best_name = best[1].opening_name or best[0]
             worst_name = worst[1].opening_name or worst[0]
             delta = best[1].win_rate - worst[1].win_rate
+            floor = MIN_GAMES_FOR_COMPARISON
             sb.write(
-                f"\n  → STRONGEST opening (min 3 games): {best_name} - "
-                f"{best[1].win_rate:.1f}% win rate\n"
+                f"  → HIGHEST win rate (min {floor} games): {best_name} - "
+                f"{best[1].win_rate:.1f}% over {format_games(best[1].games)}\n"
             )
             sb.write(
-                f"  → WEAKEST opening (min 3 games): {worst_name} - "
-                f"{worst[1].win_rate:.1f}% win rate\n"
+                f"  → LOWEST win rate (min {floor} games): {worst_name} - "
+                f"{worst[1].win_rate:.1f}% over {format_games(worst[1].games)}\n"
             )
-            sb.write(f"  → Spread: {delta:.1f} percentage points between best and worst\n")
+            sb.write(f"  → Spread: {delta:.1f} percentage points between the two\n")
 
     # ---------- retrieved games ----------
 
@@ -333,6 +492,16 @@ class QueryRouter:
         detail_limit: int,
         query_type: QueryType,
     ) -> None:
+        """Label each retrieved game by position, never by opponent.
+
+        **No opponent username reaches the prompt.** Selecting a hosted chat
+        provider sends this text off the machine, and an opponent never agreed
+        to that — the README promises as much. Readiness P0-8 stripped handles
+        from the aggregates and from the stored Game Summary; this label was the
+        third path and it survived, because it is attached here at assembly
+        rather than stored. `Opponent rating` is already in the summary and is
+        the discriminator a player actually needs.
+        """
         num_details = min(len(games), detail_limit)
 
         if query_type in (QueryType.AGGREGATE, QueryType.COMPARATIVE):
@@ -341,18 +510,11 @@ class QueryRouter:
             sb.write(f"RELEVANT GAMES (top {num_details} matches):\n")
 
         for i in range(num_details):
-            game = games[i]
-            record = game.game
-            opponent = ""
-            if record is not None:
-                if record.white_username == self._username:
-                    opponent = record.black_username
-                else:
-                    opponent = record.white_username
-
-            # The summary is flattened to one line so each game is one entry.
-            summary = game.summary_text.replace("\n", " ")
-            sb.write(f"{i + 1}. [vs {opponent}] {summary}\n")
+            # Scrubbed before flattening: a summary stored before P0-8 still has
+            # the opponent's handle in its termination line, and re-ingesting is
+            # the only thing that repairs the row itself.
+            summary = strip_unnormalized_termination(games[i].summary_text).replace("\n", " ")
+            sb.write(f"Game {i + 1}: {summary}\n")
         sb.write("\n")
 
     # ---------- instructions ----------
@@ -375,18 +537,12 @@ class QueryRouter:
         elif query_type is QueryType.SPECIFIC_GAMES:
             sb.write("- Use RELEVANT GAMES for specific examples and patterns\n")
             sb.write("- Reference PLAYER OVERVIEW for context on how typical these games are\n")
-            sb.write(
-                "- When citing specific games, use the actual opponent username shown in "
-                "brackets [vs USERNAME] to identify the game\n"
-            )
+            sb.write("- When citing specific games, identify them by label, e.g. Game 3\n")
             sb.write("- Quote specific details from game summaries when relevant\n")
         elif query_type is QueryType.RECOMMENDATION:
             sb.write("- Analyze PLAYER OVERVIEW to identify weaknesses and areas for improvement\n")
             sb.write("- Use RELEVANT GAMES as concrete examples of the issues\n")
-            sb.write(
-                "- When citing specific games, use the actual opponent username shown in "
-                "brackets [vs USERNAME] to identify the game\n"
-            )
+            sb.write("- When citing specific games, identify them by label, e.g. Game 3\n")
             sb.write("- Provide specific, actionable recommendations\n")
             sb.write("- Prioritize the most impactful areas for improvement\n")
         elif query_type is QueryType.TREND:
@@ -397,12 +553,21 @@ class QueryRouter:
             sb.write("- Highlight specific improvements or regressions with numbers\n")
             sb.write("- If recent data is limited, say so and explain what more data would show\n")
             sb.write("- Use RELEVANT GAMES to illustrate specific changes in play\n")
-            sb.write(
-                "- When citing specific games, use the actual opponent username shown in "
-                "brackets [vs USERNAME] to identify the game\n"
-            )
+            sb.write("- When citing specific games, identify them by label, e.g. Game 3\n")
 
         sb.write("- Use proper chess notation and terminology\n")
+        # The corpus stores every move, and none of them reach this prompt. Asked
+        # about an opening, a model with only the opening's *name* will supply the
+        # move order from memory and present it as the player's own — observed on
+        # both a 3B and a 20B local model. Naming the gap is the cheap half of the
+        # fix; feeding the moves table in is the other half and is not done yet.
+        sb.write(
+            "- Do not invent moves, move orders, ECO codes, opponent names, or dates. "
+            "No move list is provided here, so do not present one as the player's\n"
+        )
+        sb.write(
+            "- Small samples are marked as too few to compare - do not draw conclusions from them\n"
+        )
         sb.write("- If insufficient data exists for a question, say so clearly\n")
 
     # ---------- trend and opening detail ----------

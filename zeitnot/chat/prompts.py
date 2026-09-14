@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from io import StringIO
 
 from zeitnot.db.records import SimilarGameResult
+from zeitnot.summary import strip_unnormalized_termination
 
 _PATTERNS = (
     "Came back from losing position",
@@ -98,7 +99,10 @@ class PromptBuilder:
             num_details = min(len(games), detail_limit)
             sb.write(f"\nTOP {num_details} MOST RELEVANT GAMES (of {len(games)} analyzed):\n")
             for i in range(num_details):
-                sb.write(f"{i + 1}. {games[i].summary_text.replace(chr(10), ' ')}\n")
+                # Same scrub as the router: this builder is public API and
+                # echoes stored summary text into a prompt too.
+                summary = strip_unnormalized_termination(games[i].summary_text)
+                sb.write(f"{i + 1}. {summary.replace(chr(10), ' ')}\n")
 
         sb.write("\nINSTRUCTIONS:\n")
         sb.write("- Interpret all questions in the context of chess and the player's games\n")

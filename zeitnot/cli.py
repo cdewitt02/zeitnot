@@ -342,6 +342,19 @@ def chat(
         return
 
     with _open_db(database_url) as database:
+        # Before anything expensive, and before the banner. `chat` deliberately
+        # does not migrate — it is the read path — so on a database nothing has
+        # ingested into, every query below fails on a missing table. It used to
+        # do that one question too late, as a raw SQL error inside the REPL.
+        if not database.corpus_is_initialized():
+            _fail(
+                "this database has no corpus yet.\n"
+                "  zeitnot creates its tables on the first `zeitnot data analyze`:\n"
+                f"    zeitnot data analyze {username} <year> <month>\n"
+                "  `zeitnot doctor` reports which database is being used."
+            )
+            return
+
         try:
             model = cfg.new_chat_model()
             embedder = cfg.new_embedder()

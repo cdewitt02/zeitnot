@@ -17,6 +17,11 @@ from zeitnot.models import (
     PhaseStats,
     normalize_termination,
 )
+from zeitnot.models.game import is_normalized_termination
+
+# The one line of a Game Summary whose value comes from Chess.com rather than
+# from this module.
+TERMINATION_PREFIX = "Termination type: "
 
 OPENING_END = 10  # moves 1-10
 MIDDLEGAME_END = 25  # moves 11-25
@@ -221,3 +226,30 @@ def detect_pattern(data: GameSummaryData) -> str:
         return "Even game throughout"
 
     return "Unknown pattern"
+
+
+def strip_unnormalized_termination(summary_text: str) -> str:
+    """Drop the termination line when it predates `normalize_termination`.
+
+    **A stored summary is not necessarily a safe summary.** Normalization runs
+    when a summary is generated, so every game ingested before readiness P0-8
+    landed still has "FLAJarda won on time" sitting in `summary_text`, and that
+    text is retrieved and placed in the prompt verbatim. Re-ingesting fixes the
+    stored row; nothing in a chat session can, because the row is what there is.
+
+    So the line is dropped rather than repaired. The result, colour, opening,
+    error counts and opponent rating all survive — the summary is anonymous
+    without this line, which is exactly what P0-8 established when it removed the
+    handle from newly written ones.
+
+    A summary written by the current tree is returned unchanged.
+    """
+    kept = []
+    for line in summary_text.split("\n"):
+        value = line.strip()
+        if value.startswith(TERMINATION_PREFIX):
+            termination = value[len(TERMINATION_PREFIX) :].strip().rstrip(".").strip()
+            if termination and not is_normalized_termination(termination):
+                continue
+        kept.append(line)
+    return "\n".join(kept)

@@ -164,3 +164,25 @@ def normalize_termination(termination: str, result: str) -> str:
 
     outcome = "drawn" if result == "drew" else result
     return f"{outcome} {verb} {method}"
+
+
+# What `normalize_termination` can produce, as a prefix set. Chess.com's raw
+# strings lead with the *winner's username*, so anything not starting here is
+# either raw or from some future format — and both may carry a handle.
+#
+# "drew " is here as well as "drawn ": a draw whose method parsed becomes "drawn
+# by agreement", but the unparsed fallback is `f"{result} by other means"` and
+# `result` is "drew". Both are outputs, so both are normalized.
+_NORMALIZED_PREFIXES = ("won ", "lost ", "drawn ", "drew ")
+
+
+def is_normalized_termination(value: str) -> bool:
+    """Whether a stored termination has been through `normalize_termination`.
+
+    Read-side companion to it, for the aggregates. Normalization happens when a
+    row is written, so a `player_stats` row computed before that landed still
+    holds raw Chess.com strings — "2DBEACH won by resignation" — and nothing
+    downstream could tell. Any consumer that puts these keys somewhere they must
+    not leak has to ask first; see `zeitnot.chat.router`.
+    """
+    return value.strip().lower().startswith(_NORMALIZED_PREFIXES)
