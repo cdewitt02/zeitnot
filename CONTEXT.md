@@ -1,4 +1,4 @@
-# chesser — Context
+# zeitnot — Context
 
 Glossary of domain terms. Definitions only — no specs, no implementation detail.
 
@@ -91,6 +91,10 @@ Preserved Defect — there is nothing stable to preserve.
 
 ## Local-First
 
-Runs with no account, no API key, and no network egress beyond the Chess.com public API. Remains
-supported and is the code default, but is no longer the documented On-Ramp — it costs about eighteen
-extra minutes. See [`docs/adr/0001-postgres-in-docker-over-sqlite.md`](docs/adr/0001-postgres-in-docker-over-sqlite.md).
+Runs with no account, no API key, and no network egress beyond the Chess.com public API. It is the code
+default and one of the two documented branches of the On-Ramp, not the single recommended one: it costs
+about eighteen extra minutes of unattended download, against eight to ten minutes of *active* work —
+account, billing, an API key — for the hosted branch. The two costs differ in kind, so the README states
+both rather than ranking them. See
+[`docs/adr/0001-postgres-in-docker-over-sqlite.md`](docs/adr/0001-postgres-in-docker-over-sqlite.md) and
+[`docs/multi-provider/04-onboarding.md`](docs/multi-provider/04-onboarding.md) §4.1.

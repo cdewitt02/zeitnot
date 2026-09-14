@@ -11,8 +11,8 @@ import threading
 
 import pytest
 
-from chesser.ingest import WorkerPool, aggregate_stats, to_move_records
-from chesser.models import Game, MoveAnalysis, Player
+from zeitnot.ingest import WorkerPool, aggregate_stats, to_move_records
+from zeitnot.models import Game, MoveAnalysis, Player
 
 
 def _analyses(classifications: list[str], cpls: list[int] | None = None) -> list[MoveAnalysis]:
@@ -95,8 +95,8 @@ def _patch(monkeypatch: pytest.MonkeyPatch, pool: _FailingPool) -> None:
         with pool._lock:
             pool.processed.append(game.uuid)
 
-    monkeypatch.setattr("chesser.ingest.Engine", FakeEngine)
-    monkeypatch.setattr("chesser.ingest.process_game", process_game)
+    monkeypatch.setattr("zeitnot.ingest.Engine", FakeEngine)
+    monkeypatch.setattr("zeitnot.ingest.process_game", process_game)
 
 
 def _games(count: int) -> list[Game]:
@@ -162,6 +162,6 @@ def test_an_empty_batch_starts_no_workers(monkeypatch: pytest.MonkeyPatch) -> No
         def __exit__(self, *exc: object) -> None:
             return None
 
-    monkeypatch.setattr("chesser.ingest.Engine", CountingEngine)
+    monkeypatch.setattr("zeitnot.ingest.Engine", CountingEngine)
     WorkerPool(4, None, None, "u").process([])  # type: ignore[arg-type]
     assert started == 0

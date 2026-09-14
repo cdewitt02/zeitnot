@@ -12,13 +12,13 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from chesser.chat.classifier import QueryType
-from chesser.chat.prompts import PromptBuilder, aggregate_game_stats
-from chesser.chat.service import NO_DATA_ANSWER, Config, Service
-from chesser.db.records import GameRecord, SimilarGameResult
-from chesser.models import ColorStats, PlayerStats
-from chesser.search import GameFilters, HybridSearcher, SearchQuery
 from tests.llmtest import FakeChatModel, FakeEmbedder, FakeStreamingChatModel
+from zeitnot.chat.classifier import QueryType
+from zeitnot.chat.prompts import PromptBuilder, aggregate_game_stats
+from zeitnot.chat.service import NO_DATA_ANSWER, Config, Service
+from zeitnot.db.records import GameRecord, SimilarGameResult
+from zeitnot.models import ColorStats, PlayerStats
+from zeitnot.search import GameFilters, HybridSearcher, SearchQuery
 
 
 @dataclass
@@ -342,6 +342,6 @@ def test_the_dead_prompt_builder_still_produces_its_formatting_block() -> None:
     ],
 )
 def test_classification_precedence(question: str, want: QueryType) -> None:
-    from chesser.chat.classifier import classify_query
+    from zeitnot.chat.classifier import classify_query
 
     assert classify_query(question) is want

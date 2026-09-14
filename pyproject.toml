@@ -1,5 +1,5 @@
 [project]
-name = "chesser"
+name = "zeitnot"
 version = "0.1.0"
 description = "A chess coach that answers questions about your own games"
 readme = "README.md"
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-chesser = "chesser.cli:app"
+zeitnot = "zeitnot.cli:app"
 
 [dependency-groups]
 dev = [
@@ -36,7 +36,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["chesser"]
+packages = ["zeitnot"]
 
 [tool.ruff]
 line-length = 100
@@ -51,7 +51,7 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
 python_version = "3.11"
 strict = true
 warn_unreachable = true
-files = ["chesser", "tests"]
+files = ["zeitnot", "tests"]
 
 [[tool.mypy.overrides]]
 module = ["pgvector.*"]

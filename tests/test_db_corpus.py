@@ -18,8 +18,8 @@ import subprocess
 
 import pytest
 
-from chesser.db import DB, _from_vector
-from chesser.search import GameFilters
+from zeitnot.db import DB, _from_vector
+from zeitnot.search import GameFilters
 
 pytestmark = pytest.mark.corpus
 

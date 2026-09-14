@@ -4,7 +4,7 @@
 
 ## Context
 
-chesser's setup is the main barrier to anyone using it. A new user must install Go, PostgreSQL,
+zeitnot's setup is the main barrier to anyone using it. A new user must install Go, PostgreSQL,
 pgvector, Stockfish, and Ollama, then pull ~1.5 GB of models. A cold-start audit measured this at
 **45–90 minutes, ending in failure** — the README's ingestion command did not compile, so the run failed
 at the first step where the user would have seen the project do anything. pgvector is the worst single
@@ -134,3 +134,17 @@ is what this decision turned on.
 **Also amended:** this ADR's app image absorbs "the Go toolchain," which is language-specific. The
 containerization work it authorizes (readiness P3-1, still unimplemented — there is no
 `docker-compose.yml` in the repo) should be built against Python after the rewrite cuts over, not before.
+
+---
+
+## Status note — 2026-09-02
+
+**Half implemented.** `docker-compose.yml` now exists and covers Postgres with pgvector. The
+**application image this ADR decided on does not** — there is no `Dockerfile` in the tree — so what ships
+today is the "Compose for Postgres only" alternative this ADR rejected under *Alternatives considered*,
+and which [`../multi-provider/04-onboarding.md`](../multi-provider/04-onboarding.md) §2.3 rejected again
+as not constituting an on-ramp.
+
+The decision is unchanged; only its implementation is outstanding. Tracked in
+[`../opensource-readiness/01-roadmap.md`](../opensource-readiness/01-roadmap.md) P3-1, which was
+incorrectly marked Done on 2026-08-31 and has been corrected.

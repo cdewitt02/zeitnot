@@ -6,12 +6,14 @@ body:
     attributes:
       value: |
         Setup for this project touches several moving parts, so most reports are
-        unanswerable without the environment below. Please fill it in even if it
-        seems irrelevant — it usually isn't.
+        unanswerable without the environment below. **`zeitnot doctor` answers
+        most of it in one command** — paste its output and skip anything it
+        already covers.
 
-        **Before filing:** the README's Troubleshooting section covers the
-        failures that look like bugs but aren't, including the embedding
-        provider mismatch and the leading-zero month.
+        **Before filing:** run `zeitnot doctor`, then check
+        [docs/troubleshooting.md](https://github.com/cdewitt02/zeitnot/blob/main/docs/troubleshooting.md),
+        which covers the failures that look like bugs but aren't — including the
+        embedding provider mismatch and the leading-zero month.
 
   - type: textarea
     id: what-happened
@@ -19,7 +21,7 @@ body:
       label: What happened
       description: What you expected, and what you got instead.
       placeholder: |
-        Expected: `chesser data analyze me 2026 03` to fetch March games.
+        Expected: `zeitnot data analyze me 2026 03` to fetch March games.
         Got: "no games found for user ..."
     validations:
       required: true
@@ -43,13 +45,26 @@ body:
         URL appears, replace the password.
       render: text
 
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`zeitnot doctor` output"
+      description: |
+        Paste the whole thing. It reports the environment file, providers,
+        credentials by presence, Stockfish, the database and the index in one
+        pass, and it redacts passwords and API keys itself — so it is safe to
+        paste as-is, and it answers most of the fields below.
+      render: text
+    validations:
+      required: true
+
   - type: dropdown
     id: providers
     attributes:
       label: Which providers were selected?
       description: |
-        `CHAT_PROVIDER` and `EMBED_PROVIDER`. This is the first thing that gets
-        asked otherwise — a hosted API and a local model fail in different ways.
+        `CHAT_PROVIDER` and `EMBED_PROVIDER`. A hosted API and a local model fail
+        in different ways. Skip this if the doctor output above already shows it.
       multiple: true
       options:
         - Chat: ollama (default)
@@ -57,14 +72,12 @@ body:
         - Chat: openai
         - Embeddings: ollama (default)
         - Embeddings: openai
-    validations:
-      required: true
 
   - type: input
-    id: chesser-version
+    id: zeitnot-version
     attributes:
-      label: Chesser version or commit
-      description: "`chesser --version`, or the output of `git rev-parse --short HEAD`."
+      label: Zeitnot version or commit
+      description: "`zeitnot --version`, or the output of `git rev-parse --short HEAD`."
     validations:
       required: true
 

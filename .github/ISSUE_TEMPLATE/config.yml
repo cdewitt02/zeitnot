@@ -4,5 +4,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Setup not working?
-    url: https://github.com/cdewitt02/chesser#troubleshooting
-    about: The README's Troubleshooting section covers the failures that look like bugs but are not.
+    url: https://github.com/cdewitt02/zeitnot/blob/main/docs/troubleshooting.md
+    about: Run `zeitnot doctor` first — it reports every failing check at once. The troubleshooting guide covers the failures that look like bugs but are not.

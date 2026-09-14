@@ -4,7 +4,7 @@
 
 ## Context
 
-chesser was written in Go. The rewrite plan is
+zeitnot was written in Go. The rewrite plan is
 [`docs/python-rewrite/00-plan.md`](../python-rewrite/00-plan.md); this ADR records the decision and what
 executing it actually cost, because a contributor arriving at `legacy/` will otherwise ask.
 
@@ -33,7 +33,7 @@ arriving from those will assume a rewrite moved the number. It did not: the docu
 full-stack Compose, where the language lives inside the image; installing Go is replaced by installing
 Python and managing a virtualenv; and ingestion is untouched at ~12 minutes and dominates every row.
 
-The one real user-visible gain is ergonomic: `chesser data analyze magnus 2026 08` rather than
+The one real user-visible gain is ergonomic: `zeitnot data analyze magnus 2026 08` rather than
 `go run ./cmd/data analyze magnus 2026 08`, and a `pipx` / `uv tool install` route that does not require
 the user's toolchain to be a *build* toolchain.
 

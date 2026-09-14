@@ -1,6 +1,6 @@
 # Multi-Provider Support — Design
 
-Proposal for letting chesser use Anthropic, OpenAI, Ollama, or others.
+Proposal for letting zeitnot use Anthropic, OpenAI, Ollama, or others.
 
 **The constraints this design answers to**, from an audit of the pre-multi-provider codebase:
 
@@ -372,10 +372,10 @@ the posture should be explicit.
 - **Env vars only.** No key file, no keyring, no CLI flag (flags land in shell history and `ps` output).
 - **Provider-standard names** — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`. Users likely have them exported
   already, and the standard names are what every provider doc, SDK, and troubleshooting answer uses. Do
-  not invent `CHESSER_ANTHROPIC_KEY`.
+  not invent `ZEITNOT_ANTHROPIC_KEY`.
 - **`.env` stays gitignored** (it already is). Add `.env.example` with **empty** values and a comment
   pointing at each provider's console. Never commit a key-shaped placeholder.
-- **Local-first stays the default.** `ollama`/`ollama` means chesser still runs with no account, no key,
+- **Local-first stays the default.** `ollama`/`ollama` means zeitnot still runs with no account, no key,
   and no network. Hosted providers are opt-in, and the README should say so plainly rather than
   presenting them as the recommended path.
 - **Never log the key.** No key in error messages, no key in the startup banner. When a key is missing,

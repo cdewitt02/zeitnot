@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from chesser.models import Game, Player, YearMonth, rating_band
+from zeitnot.models import Game, Player, YearMonth, rating_band
 
 PGN = """[Event "Live Chess"]
 [White "PennedIn"]

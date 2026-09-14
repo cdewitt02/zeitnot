@@ -12,7 +12,7 @@ import io
 
 import pytest
 
-from chesser.repl import styling_available
+from zeitnot.repl import styling_available
 
 
 class _NotATTY(io.StringIO):

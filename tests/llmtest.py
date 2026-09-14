@@ -16,7 +16,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from chesser.llm.base import (
+from zeitnot.llm.base import (
     FINISH_LENGTH,
     FINISH_STOP,
     ROLE_USER,
@@ -25,7 +25,7 @@ from chesser.llm.base import (
     Message,
     Usage,
 )
-from chesser.llm.errors import ErrorKind
+from zeitnot.llm.errors import ErrorKind
 
 # ---------- scenarios ----------
 

@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from chesser.search import GameFilters
+from zeitnot.search import GameFilters
 
 
 @pytest.mark.parametrize(

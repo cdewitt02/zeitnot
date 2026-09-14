@@ -7,25 +7,25 @@
 services:
   db:
     image: pgvector/pgvector:pg17
-    container_name: chesser-db
+    container_name: zeitnot-db
     environment:
-      POSTGRES_USER: chesser
-      POSTGRES_PASSWORD: chesser
-      POSTGRES_DB: chesser
+      POSTGRES_USER: zeitnot
+      POSTGRES_PASSWORD: zeitnot
+      POSTGRES_DB: zeitnot
     ports:
       # Override if you already run PostgreSQL on 5432:
-      #   CHESSER_DB_PORT=5433 docker compose up -d
-      - "${CHESSER_DB_PORT:-5432}:5432"
+      #   ZEITNOT_DB_PORT=5433 docker compose up -d
+      - "${ZEITNOT_DB_PORT:-5432}:5432"
     volumes:
-      - chesser-pgdata:/var/lib/postgresql/data
+      - zeitnot-pgdata:/var/lib/postgresql/data
       # Enables the vector extension on first start, so no psql step is needed.
       - ./docker/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql:ro
     healthcheck:
       # Ingestion is a long job to start against a database that is not ready.
-      test: ["CMD-SHELL", "pg_isready -U chesser -d chesser"]
+      test: ["CMD-SHELL", "pg_isready -U zeitnot -d zeitnot"]
       interval: 2s
       timeout: 3s
       retries: 15
 
 volumes:
-  chesser-pgdata:
+  zeitnot-pgdata:

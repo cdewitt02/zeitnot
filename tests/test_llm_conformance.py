@@ -33,8 +33,6 @@ import httpx2
 import pytest
 import responses
 
-from chesser.llm.base import ChatRequest, ChatResponse
-from chesser.llm.errors import ErrorKind, LLMError
 from tests.llmtest import (
     CHAT_EXPECTATIONS,
     EMPTY_CONTENT,
@@ -49,6 +47,8 @@ from tests.llmtest import (
     Expectation,
     sample_request,
 )
+from zeitnot.llm.base import ChatRequest, ChatResponse
+from zeitnot.llm.errors import ErrorKind, LLMError
 
 BASE = "http://provider.test"
 
@@ -196,7 +196,7 @@ def _register_ollama(mock: Recorder, scenario: str, stream: bool) -> None:
 
 
 def _new_ollama() -> Any:
-    from chesser.llm.ollama import OllamaChatModel
+    from zeitnot.llm.ollama import OllamaChatModel
 
     return OllamaChatModel(base_url=BASE)
 
@@ -280,7 +280,7 @@ def _register_anthropic(mock: Recorder, scenario: str, stream: bool) -> None:
 
 
 def _new_anthropic() -> Any:
-    from chesser.llm.anthropic import AnthropicChatModel
+    from zeitnot.llm.anthropic import AnthropicChatModel
 
     # max_retries=0 so a fixture answers once. Never layer an adapter-level loop
     # on top of the SDK's own retries.
@@ -357,7 +357,7 @@ def _register_openai(mock: Recorder, scenario: str, stream: bool) -> None:
 
 
 def _new_openai() -> Any:
-    from chesser.llm.openai import OpenAIChatModel
+    from zeitnot.llm.openai import OpenAIChatModel
 
     return OpenAIChatModel(
         api_key="sk-test", base_url=BASE, max_retries=0, http_client=_http_client()
@@ -618,7 +618,7 @@ def test_ollama_embed_rejects_an_empty_vector() -> None:
     old Go client returned that as success and the empty vector reached the
     vector(768) column. An empty vector is an error.
     """
-    from chesser.llm.ollama import OllamaEmbedder
+    from zeitnot.llm.ollama import OllamaEmbedder
 
     with _requests_mock() as mock:
         mock.post(f"{BASE}/api/embeddings", status=200, body=json.dumps({"error": "no such model"}))
@@ -630,7 +630,7 @@ def test_ollama_embed_rejects_an_empty_vector() -> None:
 
 
 def test_ollama_embed_returns_one_vector_per_input_in_order() -> None:
-    from chesser.llm.ollama import OllamaEmbedder
+    from zeitnot.llm.ollama import OllamaEmbedder
 
     with _requests_mock() as mock:
         for value in (1.0, 2.0, 3.0):
@@ -641,7 +641,7 @@ def test_ollama_embed_returns_one_vector_per_input_in_order() -> None:
 
 
 def test_ollama_dimensions_are_known_for_the_default_model_and_unknown_otherwise() -> None:
-    from chesser.llm.ollama import OllamaEmbedder
+    from zeitnot.llm.ollama import OllamaEmbedder
 
     assert OllamaEmbedder(base_url=BASE).dimensions() == 768
     # A tag is stripped before the lookup.
@@ -657,7 +657,7 @@ def test_openai_embed_orders_vectors_by_the_reported_index() -> None:
     pairing would attach every summary to the wrong vector — silently, and only
     detectable as bad retrieval.
     """
-    from chesser.llm.openai import OpenAIEmbedder
+    from zeitnot.llm.openai import OpenAIEmbedder
 
     with _httpx_mock() as mock:
         mock.post(
@@ -692,7 +692,7 @@ def test_openai_embed_orders_vectors_by_the_reported_index() -> None:
 def test_openai_embed_omits_dimensions_for_a_model_that_cannot_truncate() -> None:
     """Sending `dimensions` to ada-002 is a 400, so it is omitted rather than
     sent hopefully."""
-    from chesser.llm.openai import OpenAIEmbedder
+    from zeitnot.llm.openai import OpenAIEmbedder
 
     with _httpx_mock() as mock:
         embedder = OpenAIEmbedder(
@@ -723,7 +723,7 @@ def test_openai_embed_omits_dimensions_for_a_model_that_cannot_truncate() -> Non
 
 
 def test_openai_embed_rejects_an_empty_input_by_index() -> None:
-    from chesser.llm.openai import OpenAIEmbedder
+    from zeitnot.llm.openai import OpenAIEmbedder
 
     embedder = OpenAIEmbedder(api_key="sk-test", base_url=BASE, max_retries=0)
     with pytest.raises(LLMError) as excinfo:
@@ -734,8 +734,8 @@ def test_openai_embed_rejects_an_empty_input_by_index() -> None:
 
 
 def test_embed_one_rejects_a_response_of_the_wrong_length() -> None:
-    from chesser.llm.base import embed_one
     from tests.llmtest import FakeEmbedder
+    from zeitnot.llm.base import embed_one
 
     class Broken(FakeEmbedder):
         def embed(self, texts: Any) -> list[list[float]]:
@@ -754,11 +754,11 @@ def test_embed_one_rejects_a_response_of_the_wrong_length() -> None:
     [("anthropic", "ANTHROPIC_API_KEY"), ("openai", "OPENAI_API_KEY")],
 )
 def test_a_missing_credential_names_its_environment_variable(provider: str, env_var: str) -> None:
-    """The credential check lives in the constructor, which `chesser chat` calls
+    """The credential check lives in the constructor, which `zeitnot chat` calls
     before its welcome banner. `resolve` itself stays credential-free so
     ingestion — which needs no chat provider — is not blocked by a missing chat
     key."""
-    from chesser.config import resolve
+    from zeitnot.config import resolve
 
     cfg = resolve(lambda k: {"CHAT_PROVIDER": provider}.get(k, ""), "")
     with pytest.raises(LLMError) as excinfo:
@@ -768,7 +768,7 @@ def test_a_missing_credential_names_its_environment_variable(provider: str, env_
 
 
 def test_the_embedder_is_unaffected_by_a_missing_chat_credential() -> None:
-    from chesser.config import resolve
+    from zeitnot.config import resolve
 
     cfg = resolve(lambda k: {"CHAT_PROVIDER": "anthropic"}.get(k, ""), "")
     embedder = cfg.new_embedder()  # must not raise: it never needed that key
@@ -778,7 +778,7 @@ def test_the_embedder_is_unaffected_by_a_missing_chat_credential() -> None:
 def test_a_missing_openai_key_fails_for_both_halves() -> None:
     """OpenAI is the one provider whose key both halves need, so a missing key
     must be reported by whichever half is being built."""
-    from chesser.config import resolve
+    from zeitnot.config import resolve
 
     cfg = resolve(lambda k: {"CHAT_PROVIDER": "openai", "EMBED_PROVIDER": "openai"}.get(k, ""), "")
     for build in (cfg.new_chat_model, cfg.new_embedder):
@@ -790,8 +790,8 @@ def test_a_missing_openai_key_fails_for_both_halves() -> None:
 def test_the_fakes_satisfy_the_protocols_they_stand_in_for() -> None:
     """The fakes have to be substitutable for the real adapters, or the tests
     that use them prove nothing about the code that runs."""
-    from chesser.llm.base import ChatModel, Embedder, StreamingChatModel
     from tests.llmtest import FakeEmbedder, FakeStreamingChatModel
+    from zeitnot.llm.base import ChatModel, Embedder, StreamingChatModel
 
     model = FakeStreamingChatModel()
     assert isinstance(model, ChatModel)

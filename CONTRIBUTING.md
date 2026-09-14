@@ -5,11 +5,17 @@
 ```bash
 uv venv
 uv pip install -e ".[dev]"
-. ./.env                       # copy .env.example first
+cp .env.example .env
+zeitnot doctor                 # every startup check, in one pass
 ```
 
 You will also need PostgreSQL with pgvector, Stockfish on `PATH`, and — for the
 default configuration — Ollama with `nomic-embed-text` and `llama3.2` pulled.
+`zeitnot doctor` reports which of those are missing rather than failing at the
+first one; the README's [Setup](README.md#setup) section covers installing them.
+
+Nothing needs sourcing: zeitnot reads `.env` from the working directory itself,
+and anything already exported outranks the file.
 
 ## The checks
 
@@ -69,7 +75,7 @@ expected, not a broken checkout.
 
 ## One preserved defect
 
-`chesser/summary.py` carried two bugs on purpose, preserved through the port so
+`zeitnot/summary.py` carried two bugs on purpose, preserved through the port so
 that any diff meant a porting error rather than a deliberate improvement. **One
 is now fixed**; one remains.
 
@@ -84,7 +90,7 @@ verification.
 
 **Anything that changes summary text changes the embedded text**, which makes
 stored vectors stale relative to their own source. The remedy is to regenerate
-summaries and then run `chesser data reembed`; a fresh clone is unaffected,
+summaries and then run `zeitnot data reembed`; a fresh clone is unaffected,
 since it ingests from scratch.
 
 ## Things that are load-bearing

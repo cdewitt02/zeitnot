@@ -28,7 +28,7 @@
       sorted, or the prompt stops being reproducible between runs.
 - [ ] **Changes Game Summary text.** The summary text *is* the embedded text, so
       stored vectors go stale relative to their own source. Say so, and name the
-      remedy (`chesser data reembed`).
+      remedy (`zeitnot data reembed`).
 - [ ] **Touches a provider adapter.** Adapters must never send a parameter the
       caller did not set, and retries belong to the SDK — never a loop on top.
 - [ ] **Changes the database schema.** Nothing has yet; it is not off limits, but
