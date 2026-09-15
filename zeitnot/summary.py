@@ -74,8 +74,6 @@ def extract_summary_data(
     opening_stats = PhaseStats()
     middlegame_stats = PhaseStats()
     endgame_stats = PhaseStats()
-    biggest_swing = 0
-    biggest_swing_move = 0
     was_winning = False
     was_losing = False
 
@@ -94,13 +92,6 @@ def extract_summary_data(
         )
         if not is_player_move:
             continue
-
-        if move.centipawn_loss > biggest_swing:
-            biggest_swing = move.centipawn_loss
-            # A ply number despite the name. Neither this nor `biggest_swing`
-            # reaches the summary text, so nothing renders it today; whatever
-            # first does has to convert it or label it as a ply.
-            biggest_swing_move = i + 1
 
         # `i` indexes plies, and the boundaries above are full moves. Reading the
         # index as a move number is what made "opening" mean the first five full
@@ -133,8 +124,6 @@ def extract_summary_data(
         opening=opening_stats,
         middlegame=middlegame_stats,
         endgame=endgame_stats,
-        biggest_swing=biggest_swing,
-        biggest_swing_move=biggest_swing_move,
         was_winning=was_winning,
         was_losing=was_losing,
         termination_type=normalize_termination(game.termination_type(), result),
