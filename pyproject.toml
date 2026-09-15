@@ -76,12 +76,15 @@ pythonVersion = "3.11"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Tests that need Postgres or a local golden capture are marked, rather than
-# skipped silently, so a bare `pytest` run says what it did not check. No test
-# needs a live Ollama: the adapter suite runs against the fakes in
-# `tests/llmtest.py`, deliberately — a concrete client would make every consumer
-# of it require a running server.
+# Tests that need Postgres are marked, rather than skipped silently, so a bare
+# `pytest` run says what it did not check. No test needs a live Ollama: the
+# adapter suite runs against the fakes in `tests/llmtest.py`, deliberately — a
+# concrete client would make every consumer of it require a running server.
+#
+# There was a second marker, `golden`, for tests reading a locally captured
+# corpus golden. Those captures were retired in ADR 0003 and everything left in
+# `testdata/golden/` is committed, so no test can fail to find its file any
+# more and the marker had nothing left to guard.
 markers = [
     "corpus: requires the live database (DATABASE_URL)",
-    "golden: requires locally captured corpus goldens",
 ]

@@ -28,8 +28,8 @@ rather than deleted, so the audit's findings stay traceable to their resolution.
 | P1-1 `gofmt` sweep | **Moot** | `ruff format` — the tree was born formatted, so there is no sweep to sequence |
 | P1-2 CI | **Done** | `.github/workflows/ci.yml`: ruff, `mypy --strict`, pytest on 3.11 and 3.13 |
 | P1-3 CONTRIBUTING | **Done** | Includes the honest testing matrix the audit asked for (markers, not prose) |
-| P2-1 Test the summary package | **Done** | `tests/test_parity_summary.py` plus the goldens — and it *did* surface real bugs, now the two Preserved Defects |
-| P2-2 Make the engine testable | **Done** | `python-chess`'s `SimpleEngine` replaced the UCI wrapper; `tests/test_parity_engine.py` covers the sign and CPL logic |
+| P2-1 Test the summary package | **Done** | `tests/test_summary.py` and `tests/test_summary_corpus.py` — and it *did* surface real bugs, now the two Preserved Defects (one since fixed) |
+| P2-2 Make the engine testable | **Done** | `python-chess`'s `SimpleEngine` replaced the UCI wrapper; `tests/test_engine.py` covers the sign and CPL logic |
 | P2-3 Startup preflight | **Done** | `config.preflight` runs before the banner; `config.check_index` guards provenance |
 | P2-4 Actionable errors | **Done** | `zeitnot/llm/errors.py` classifies by kind; messages name the remedy |
 | P2-7 Linting (half) | **Done** | `ruff check` in CI. *Dependency vulnerability scanning is still open* — see P2-7 below |
@@ -53,13 +53,18 @@ turned out to involve.
 The audit's three orderings were all Go-specific (module rename, `gofmt` sweep, both before outside PRs)
 and are gone. Three replace them:
 
-1. **P0-8 before any golden recapture.** It changes the Assembled Prompt, so it invalidates
-   `testdata/golden/prompts/`. Since there is currently no capture tool at all
-   (see below), P0-8 and the tool are entangled — decide the order deliberately.
-2. **The Python golden capture tool before P0-8 or either Preserved Defect.** `legacy/cmd/golden` was
-   deleted with the Go tree, so nothing can regenerate `testdata/golden/`. Any change to summary or
-   prompt text is currently unverifiable against a fresh capture. This is a Phase 8 item in
-   [`../python-rewrite/00-plan.md`](../python-rewrite/00-plan.md) and it now gates real roadmap work.
+1. ~~**P0-8 before any golden recapture.**~~ ~~**The Python golden capture tool before P0-8 or
+   either Preserved Defect.**~~ **Both lifted 2026-09-15.** The corpus-derived goldens were retired
+   ([ADR 0003](../adr/0003-retire-the-parity-goldens.md)), so there is nothing to recapture and no
+   capture tool in front of anything. P0-8 and both Preserved Defects are now sequenced only by their
+   own merits. A change to the Assembled Prompt shows up as a diff in
+   `testdata/golden/prompt_snapshots/`, committed and regenerated in the same change.
+2. **The Game Summary regeneration pass before either Preserved Defect.** This replaces the capture
+   tool as the real blocker, and it always was the real one: changing summary text makes every stored
+   vector stale against its own source, and no command repairs that today. The corpus is *already*
+   spanning three such changes — `tests/test_summary_corpus.py` now fails loudly rather than letting it
+   pass unnoticed — so the pass is overdue rather than speculative. It needs only `games` and `moves`,
+   both stored, and no Stockfish.
 3. **P0-2 (license) before P1-5 (good-first-issue).** Unchanged from the audit: soliciting contributions
    to a repository nobody may legally fork is not a coherent ask.
 
@@ -185,7 +190,7 @@ docs instead:
 - P0-9 above — documenting `refresh-stats`, genuinely a first PR.
 - P3-4's troubleshooting section, one entry at a time.
 - The `NUM_WORKERS` guidance in P3-3.
-- The Python golden capture tool (sequencing constraint 2) for someone who wants something meatier.
+- The Game Summary regeneration pass (sequencing constraint 2) for someone who wants something meatier.
 
 **Effort.** S.
 
@@ -471,7 +476,7 @@ attached (`zeitnot data reembed`) rather than vague advice.
 | Phase | Items | Rationale |
 |---|---|---|
 | 1 | P0-2, P0-9 | License unblocks everything social; P0-9 is a one-section doc fix |
-| 2 | Python golden capture tool | Not a roadmap item — a Phase 8 item that now *gates* P0-8 and both Preserved Defects |
+| 2 | Game Summary regeneration pass | Not a roadmap item — but it *gates* both Preserved Defects, and one `corpus` test now fails until it exists |
 | 3 | P0-8 | The last real P0, and the one with a disclosure promise riding on it |
 | 4 | P1-4, P2-5 | Templates invite pasted errors, so redaction lands with them, not after |
 | 5 | P3-1, P3-2, P3-4 | Biggest onboarding wins, all small |
@@ -487,4 +492,5 @@ script P3-1 needs is the natural home for P3-2's targets.
 
 The audit's original estimate was "two to three focused days" to reach contributor-ready. **Most of that
 has been spent** — sixteen items closed, and the remainder is roughly one focused day, still mostly
-documentation. The exception is P0-8, which is real code with a golden-recapture dependency in front of it.
+documentation. The exception is P0-8, which is real code — though as of 2026-09-15 it no longer has a
+golden-recapture dependency in front of it.

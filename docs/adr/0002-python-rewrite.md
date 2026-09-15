@@ -1,6 +1,6 @@
 # ADR 0002 — Rewrite the application in Python, keeping the database untouched
 
-**Status:** Accepted · 2026-08-29 · amended 2026-08-31 (see [Amendment](#amendment--2026-08-31))
+**Status:** Accepted · 2026-08-29 · amended 2026-08-31 (see [Amendment](#amendment--2026-08-31)) · the goldens this ADR's gate ran on were retired by [ADR 0003](./0003-retire-the-parity-goldens.md) on 2026-09-15
 
 ## Context
 
@@ -160,6 +160,11 @@ commit.
 already a Phase 8 item in [`docs/python-rewrite/00-plan.md`](../python-rewrite/00-plan.md). Until it
 exists, the goldens are frozen: regenerating one is impossible rather than merely discouraged, which is
 a stricter and in some ways safer position than the one this ADR described.
+
+*(Superseded 2026-09-15. The tool was never built, and [ADR 0003](./0003-retire-the-parity-goldens.md)
+retired the three corpus-derived goldens rather than recapturing them — so there is no longer anything
+to recapture and no prerequisite in front of P0-8 or the Preserved Defects. The validation table above
+is left as written: it records what the cutover actually verified, which remains true of the cutover.)*
 
 **Historical references to Go are kept on purpose.** This ADR, [ADR 0001](./0001-postgres-in-docker-over-sqlite.md),
 and the rewrite plan all cite `internal/*.go` paths. They are records of decisions made when that code
