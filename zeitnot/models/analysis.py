@@ -18,7 +18,7 @@ class MoveAnalysis:
     is_mate: bool = False
     mate_in: int = 0
     best_move: str = ""
-    pv: list[str] = field(default_factory=list)
+    pv: list[str] = field(default_factory=list[str])
     depth: int = 0
     played_move: str = ""
     centipawn_loss: int = 0

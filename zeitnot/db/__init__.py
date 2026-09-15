@@ -13,10 +13,10 @@ from __future__ import annotations
 import json
 import logging
 import os
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any
+from typing import Any, LiteralString
 
 import psycopg
 from pgvector import Vector
@@ -297,7 +297,7 @@ class DB:
         self.close()
 
     @contextmanager
-    def cursor(self) -> Iterator[psycopg.Cursor[Any]]:
+    def cursor(self) -> Generator[psycopg.Cursor[Any], None, None]:
         """A cursor on a pooled connection, committed on clean exit."""
         with self._pool.connection() as conn, conn.cursor() as cur:
             yield cur
@@ -584,7 +584,7 @@ class DB:
         and the limit is last. Under `$N` that ordering was carried by an index
         threaded through `BuildWHERE`; here it is carried by the list itself.
         """
-        base = """
+        base: LiteralString = """
             SELECT gs.game_uuid, gs.summary_text, gs.embedding <=> %s AS distance,
                    g.uuid, g.url, g.pgn, g.eco_code, g.eco_name,
                    g.white_username, g.white_rating, g.black_username, g.black_rating,
@@ -598,13 +598,13 @@ class DB:
             JOIN games g ON gs.game_uuid = g.uuid
         """
         where = filters.build_where()
-        query = base + (f" WHERE {where.clause}" if where.clause else "")
+        query: LiteralString = base + (f" WHERE {where.clause}" if where.clause else "")
         query += " ORDER BY distance LIMIT %s"
         args: list[Any] = [_vector(query_embedding), *where.args, limit]
 
         with self.cursor() as cur:
             cur.execute(query, args)
-            results = []
+            results: list[SimilarGameResult] = []
             for row in cur.fetchall():
                 # The GameRecord columns here omit termination_type and
                 # played_at, matching the Go query, so the row cannot be handed
@@ -647,7 +647,7 @@ class DB:
     def count_games_matching_filters(self, filters: GameFilters) -> int:
         """How restrictive the filters are, before running the vector search."""
         where = filters.build_where()
-        query = "SELECT COUNT(*) FROM games g"
+        query: LiteralString = "SELECT COUNT(*) FROM games g"
         if where.clause:
             query += f" WHERE {where.clause}"
         with self.cursor() as cur:

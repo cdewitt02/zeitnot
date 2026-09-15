@@ -27,14 +27,23 @@ directory itself, and anything already exported outranks the file.
 ```bash
 ruff check . && ruff format --check .
 mypy
+pyright
 pytest
 ```
 
-All three must pass. CI runs exactly these.
+All four must pass. CI runs exactly these.
 
 **`mypy --strict` is not optional and not negotiable down.** It is configured in
 `pyproject.toml` and it is what replaced the Go compiler; a `# type: ignore`
 needs a reason next to it.
+
+**`pyright` is a second checker, not a stricter one**, and it runs at *standard*
+rather than strict. It is here for one rule mypy does not implement:
+`LiteralString`, which is what keeps a filter value out of the SQL text that
+`zeitnot/search/filters.py` builds. If you are adding a query, values go in
+`args` as `%s` placeholders and never into the clause — the type will tell you
+so. Raising pyright to strict is not a tidy-up: it reports ~70 findings, almost
+all of them the LLM SDKs' own return types being partially unknown.
 
 ## The testing matrix
 

@@ -9,7 +9,7 @@ the whole file is arranged around.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 import pytest
@@ -25,7 +25,7 @@ URL = f"{BASE}/player/magnus/games/2026/01"
 
 
 @contextmanager
-def serve() -> Iterator[responses.RequestsMock]:
+def serve() -> Generator[responses.RequestsMock, None, None]:
     """Point the client at a fixture server for the duration of one test."""
     previous = api.BASE_URL
     api.BASE_URL = BASE

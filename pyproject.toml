@@ -24,6 +24,7 @@ zeitnot = "zeitnot.cli:app"
 [dependency-groups]
 dev = [
     "mypy>=1.14",
+    "pyright>=1.1.414",
     "pytest>=8.3",
     "respx>=0.22",
     "responses>=0.25",
@@ -56,6 +57,22 @@ files = ["zeitnot", "tests"]
 [[tool.mypy.overrides]]
 module = ["pgvector.*"]
 ignore_missing_imports = true
+
+# A second checker, not a stricter one. It is here for one rule mypy does not
+# implement: PEP 675 `LiteralString`, which is what stops a filter value from
+# being concatenated into a SQL string in `zeitnot/search/filters.py`. Verified
+# by splicing a value into the WHERE builder — pyright rejects it, mypy 2.3
+# reports success — so without this job that guarantee would hold only in an
+# editor that happened to have strict mode switched on.
+#
+# **standard, deliberately not strict.** Strict adds ~70 findings, effectively
+# all of them "this vendor SDK's return type is partially unknown" in the three
+# LLM adapters, and clearing those means casting at every boundary. The rules
+# that catch defects in this codebase are all on at standard.
+[tool.pyright]
+include = ["zeitnot", "tests"]
+typeCheckingMode = "standard"
+pythonVersion = "3.11"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -55,7 +55,7 @@ class MoveRecord:
 class GameSummary:
     game_uuid: str = ""
     summary_text: str = ""
-    embedding: list[float] = field(default_factory=list)
+    embedding: list[float] = field(default_factory=list[float])
 
 
 @dataclass(slots=True)

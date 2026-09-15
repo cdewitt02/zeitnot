@@ -119,9 +119,9 @@ class QueryContext:
 
     query_type: QueryType
     player_stats: PlayerStats | None = None
-    games: list[SimilarGameResult] = field(default_factory=list)
-    filters: list[str] = field(default_factory=list)
-    mentioned_openings: list[str] = field(default_factory=list)
+    games: list[SimilarGameResult] = field(default_factory=list[SimilarGameResult])
+    filters: list[str] = field(default_factory=list[str])
+    mentioned_openings: list[str] = field(default_factory=list[str])
     # Whether the question is about openings, which is not the same as which
     # type it is. See QueryRouter._write_player_stats.
     about_openings: bool = False
