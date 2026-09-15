@@ -25,7 +25,7 @@ nothing here touches the network.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import Any, Protocol
 
@@ -127,13 +127,13 @@ class _HttpxRecorder:
 
 
 @contextmanager
-def _requests_mock() -> Iterator[Recorder]:
+def _requests_mock() -> Generator[Recorder, None, None]:
     with responses.RequestsMock(assert_all_requests_are_fired=False) as mock:
         yield _RequestsRecorder(mock)
 
 
 @contextmanager
-def _httpx_mock() -> Iterator[Recorder]:
+def _httpx_mock() -> Generator[Recorder, None, None]:
     """Yields a recorder whose transport the adapter factories pick up.
 
     The factories read `_ACTIVE_HTTPX`, because the adapter has to be

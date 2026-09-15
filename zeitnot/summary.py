@@ -244,7 +244,7 @@ def strip_unnormalized_termination(summary_text: str) -> str:
 
     A summary written by the current tree is returned unchanged.
     """
-    kept = []
+    kept: list[str] = []
     for line in summary_text.split("\n"):
         value = line.strip()
         if value.startswith(TERMINATION_PREFIX):

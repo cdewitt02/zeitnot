@@ -119,9 +119,9 @@ class QueryContext:
 
     query_type: QueryType
     player_stats: PlayerStats | None = None
-    games: list[SimilarGameResult] = field(default_factory=list)
-    filters: list[str] = field(default_factory=list)
-    mentioned_openings: list[str] = field(default_factory=list)
+    games: list[SimilarGameResult] = field(default_factory=list[SimilarGameResult])
+    filters: list[str] = field(default_factory=list[str])
+    mentioned_openings: list[str] = field(default_factory=list[str])
     # Whether the question is about openings, which is not the same as which
     # type it is. See QueryRouter._write_player_stats.
     about_openings: bool = False
@@ -313,6 +313,29 @@ class QueryRouter:
         sb.write("\n")
 
     def _write_color_comparison(self, sb: StringIO, white: ColorStats, black: ColorStats) -> None:
+        """Withheld unless both sides clear `MIN_GAMES_FOR_COMPARISON`.
+
+        This was the one comparison in the file with no floor under it, and
+        `compute_player_stats` seeds both colors whether or not either was
+        played — so a first month that happened to be lopsided rendered
+
+            - As black: 0 games, 0.0% win rate, 0.0 avg CPL (only 0 games ...)
+            - As white: 2 games, 50.0% win rate, 56.4 avg CPL (only 2 games ...)
+              → Direct comparison: White win rate is 50.0% HIGHER than Black;
+                plays 56.4 CPL BETTER as Black
+
+        a verdict about a color the player had never played, directly beneath
+        two rows that both said the sample was too small. It cannot appear on a
+        corpus of any real size — the maintainer's splits 100/95 — which is why
+        it outlived the sweep that put a floor under every other bucket, and why
+        only a first-time user was ever going to see it.
+
+        Silent, like the other two insight helpers: the rows above already
+        report both counts, so there is nothing to explain the absence of.
+        """
+        if white.games < MIN_GAMES_FOR_COMPARISON or black.games < MIN_GAMES_FOR_COMPARISON:
+            return
+
         win_rate_delta = white.win_rate - black.win_rate
         cpl_delta = white.avg_cpl - black.avg_cpl
 

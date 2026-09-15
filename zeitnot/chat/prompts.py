@@ -42,9 +42,9 @@ class GameStats:
     draws: int = 0
     as_white: int = 0
     as_black: int = 0
-    openings: dict[str, int] = field(default_factory=dict)
-    weakest_phases: dict[str, int] = field(default_factory=dict)
-    patterns: dict[str, int] = field(default_factory=dict)
+    openings: dict[str, int] = field(default_factory=dict[str, int])
+    weakest_phases: dict[str, int] = field(default_factory=dict[str, int])
+    patterns: dict[str, int] = field(default_factory=dict[str, int])
 
 
 class PromptBuilder:

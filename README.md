@@ -197,7 +197,8 @@ correct-but-surprising, and the ones doctor can only point at.
 ## Contributing
 
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The short
-version is that `ruff check`, `mypy --strict`, and `pytest` must all pass.
+version is that `ruff check`, `mypy --strict`, `pyright`, and `pytest` must all
+pass.
 
 Looking for somewhere to start?
 [`docs/opensource-readiness/01-roadmap.md`](docs/opensource-readiness/01-roadmap.md)

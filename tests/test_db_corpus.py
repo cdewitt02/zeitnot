@@ -15,6 +15,7 @@ else — no error, no failing insert.
 from __future__ import annotations
 
 import subprocess
+from typing import LiteralString
 
 import pytest
 
@@ -34,7 +35,7 @@ def _psql(database_url: str, query: str) -> str:
 
 
 @pytest.mark.parametrize("table", ["games", "moves", "game_summaries"])
-def test_row_counts_match_psql(db: DB, database_url: str, table: str) -> None:
+def test_row_counts_match_psql(db: DB, database_url: str, table: LiteralString) -> None:
     expected = int(_psql(database_url, f"SELECT COUNT(*) FROM {table}"))
     with db.cursor() as cur:
         cur.execute(f"SELECT COUNT(*) FROM {table}")

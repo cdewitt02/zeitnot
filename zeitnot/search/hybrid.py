@@ -35,10 +35,11 @@ class SearchQuery:
 
 @dataclass(slots=True)
 class SearchResult:
-    games: list[SimilarGameResult] = field(default_factory=list)  # ranked by similarity
+    # ranked by similarity
+    games: list[SimilarGameResult] = field(default_factory=list[SimilarGameResult])
     applied_filters: GameFilters | None = None
     semantic_query: str = ""
-    extracted_filters: list[str] = field(default_factory=list)
+    extracted_filters: list[str] = field(default_factory=list[str])
     matching_games_count: int = 0
 
 

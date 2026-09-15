@@ -37,7 +37,7 @@ class TimePattern:
 class ParseResult:
     filters: GameFilters
     semantic_query: str
-    extracted_filters: list[str] = field(default_factory=list)
+    extracted_filters: list[str] = field(default_factory=list[str])
 
 
 OPENING_PATTERNS: dict[str, OpeningPattern] = {

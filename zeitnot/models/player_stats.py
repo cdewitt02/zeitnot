@@ -128,12 +128,16 @@ class PlayerStats:
     draws: int = 0
     avg_cpl: float = 0.0
 
-    stats_by_color: dict[str, ColorStats] = field(default_factory=dict)
-    stats_by_time_class: dict[str, TimeClassStats] = field(default_factory=dict)
-    stats_by_opening: dict[str, OpeningStats] = field(default_factory=dict)
-    stats_by_rating_band: dict[str, RatingBandStats] = field(default_factory=dict)
+    stats_by_color: dict[str, ColorStats] = field(default_factory=dict[str, ColorStats])
+    stats_by_time_class: dict[str, TimeClassStats] = field(
+        default_factory=dict[str, TimeClassStats]
+    )
+    stats_by_opening: dict[str, OpeningStats] = field(default_factory=dict[str, OpeningStats])
+    stats_by_rating_band: dict[str, RatingBandStats] = field(
+        default_factory=dict[str, RatingBandStats]
+    )
 
-    stats_by_termination: dict[str, int] = field(default_factory=dict)
+    stats_by_termination: dict[str, int] = field(default_factory=dict[str, int])
 
     last_30_days: PeriodStats | None = None
     last_90_days: PeriodStats | None = None

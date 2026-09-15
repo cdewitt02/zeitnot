@@ -37,7 +37,7 @@ class Game:
     time_control: str = ""
     end_time: int = 0
     rated: bool = False
-    accuracies: dict[str, float] = field(default_factory=dict)
+    accuracies: dict[str, float] = field(default_factory=dict[str, float])
     tcn: str = ""
     initial_setup: str = ""
     fen: str = ""

@@ -100,7 +100,7 @@ class FakeEmbedder:
 
     dims: int = 768
     error: Exception | None = None
-    calls: list[list[str]] = field(default_factory=list)
+    calls: list[list[str]] = field(default_factory=list[list[str]])
 
     def name(self) -> str:
         return "fake"
@@ -127,7 +127,7 @@ class FakeChatModel:
 
     response: ChatResponse | None = None
     error: Exception | None = None
-    requests: list[ChatRequest] = field(default_factory=list)
+    requests: list[ChatRequest] = field(default_factory=list[ChatRequest])
     deltas: Sequence[str] = ()
 
     def name(self) -> str:

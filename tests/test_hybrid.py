@@ -26,7 +26,7 @@ class StubSearcher:
     """Stands in for the database."""
 
     count: int = 0
-    results: list[SimilarGameResult] = field(default_factory=list)
+    results: list[SimilarGameResult] = field(default_factory=list[SimilarGameResult])
     error: Exception | None = None
 
     got_embedding: Sequence[float] = ()

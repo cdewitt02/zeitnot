@@ -71,7 +71,7 @@ class Check:
 
 @dataclass(slots=True)
 class Report:
-    checks: list[Check] = field(default_factory=list)
+    checks: list[Check] = field(default_factory=list[Check])
 
     @property
     def failed(self) -> list[Check]:

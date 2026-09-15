@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Any
+from typing import Any, LiteralString
 
 
 @dataclass(slots=True)
@@ -50,10 +50,10 @@ class GameFilters:
         faithful port would have carried dead complexity forever, in the one
         function ADR 0001 singled out as load-bearing.
         """
-        conditions: list[str] = []
+        conditions: list[LiteralString] = []
         args: list[Any] = []
 
-        def add(condition: str, arg: Any) -> None:
+        def add(condition: LiteralString, arg: Any) -> None:
             conditions.append(condition)
             args.append(arg)
 
@@ -108,7 +108,7 @@ class GameFilters:
             add("LOWER(g.eco_name) LIKE %s", "%" + self.opening_name.lower() + "%")
 
         if self.min_blunders is not None or self.max_blunders is not None:
-            blunder_expr = (
+            blunder_expr: LiteralString = (
                 "CASE WHEN g.white_username = %s THEN g.blunders_white ELSE g.blunders_black END"
             )
             if self.min_blunders is not None:
@@ -119,7 +119,7 @@ class GameFilters:
                 args.extend([self.username, self.max_blunders])
 
         if self.min_mistakes is not None:
-            mistake_expr = (
+            mistake_expr: LiteralString = (
                 "CASE WHEN g.white_username = %s THEN g.mistakes_white ELSE g.mistakes_black END"
             )
             conditions.append(f"({mistake_expr}) >= %s")
@@ -127,7 +127,7 @@ class GameFilters:
 
         if self.min_rating is not None or self.max_rating is not None:
             # The opponent's rating is the one opposite the player's color.
-            rating_expr = (
+            rating_expr: LiteralString = (
                 "CASE WHEN g.white_username = %s THEN g.black_rating ELSE g.white_rating END"
             )
             if self.min_rating is not None:
@@ -209,5 +209,8 @@ class GameFilters:
 
 @dataclass(slots=True)
 class FilterResult:
-    clause: str
-    args: list[Any] = field(default_factory=list)
+    # LiteralString, not str: the clause is SQL *text*, so the type is what
+    # stops a filter value from ever being concatenated into it. The values
+    # themselves are in `args`, one %s placeholder each.
+    clause: LiteralString
+    args: list[Any] = field(default_factory=list[Any])

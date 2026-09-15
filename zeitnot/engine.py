@@ -14,7 +14,7 @@ from __future__ import annotations
 import io
 import os
 import shutil
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from types import TracebackType
 
@@ -164,7 +164,7 @@ def probe() -> str:
 
 
 @contextmanager
-def start_engine(command: str = "") -> Iterator[Engine]:
+def start_engine(command: str = "") -> Generator[Engine, None, None]:
     engine = Engine(command)
     try:
         yield engine

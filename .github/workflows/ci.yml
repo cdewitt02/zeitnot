@@ -36,6 +36,13 @@ jobs:
       - name: mypy --strict
         run: uv run mypy
 
+      # A second checker for one rule mypy does not implement: LiteralString,
+      # which is what keeps a filter value out of the SQL text in
+      # zeitnot/search/filters.py. Configured at standard mode in
+      # pyproject.toml — see the comment there for why not strict.
+      - name: pyright
+        run: uv run pyright
+
       - name: pytest
         # The portable subset. The corpus-backed tests need a populated
         # database and locally regenerated goldens, neither of which belongs in
