@@ -392,3 +392,18 @@ def test_the_prompt_is_byte_identical_across_repeated_assembly() -> None:
     first = _prompt(QueryType.RECOMMENDATION, about_openings=True)
     for _ in range(3):
         assert _prompt(QueryType.RECOMMENDATION, about_openings=True) == first
+
+
+def test_missing_mentioned_opening_is_explicit_in_prompt() -> None:
+    stats = _stats()
+    prompt = _router().build_prompt(
+        QueryContext(
+            query_type=QueryType.RECOMMENDATION,
+            player_stats=stats,
+            mentioned_openings=["Catalan"],
+        ),
+        detail_limit=5,
+    )
+
+    assert "OPENING-SPECIFIC STATS" in prompt
+    assert "No analyzed games in: Catalan" in prompt
