@@ -217,6 +217,44 @@ def test_a_one_game_bucket_is_reported_without_a_comparison() -> None:
     assert "45.1% ABOVE overall" not in prompt
 
 
+def test_the_color_comparison_is_withheld_when_a_side_is_too_small() -> None:
+    """A first month of two games, both as white.
+
+    `compute_player_stats` seeds both colors unconditionally, so the zero-game
+    side is not a contrived fixture — it is what every new user's first corpus
+    looks like until they have played both colors three times. The rows stay;
+    the verdict drawn from them does not.
+    """
+    stats = PlayerStats(
+        username=USERNAME,
+        total_games=2,
+        wins=1,
+        losses=1,
+        avg_cpl=56.4,
+        stats_by_color={
+            "white": ColorStats(games=2, wins=1, losses=1, avg_cpl=56.4, win_rate=50.0),
+            "black": ColorStats(),
+        },
+    )
+    prompt = _router().build_prompt(
+        QueryContext(query_type=QueryType.COMPARATIVE, player_stats=stats, games=_games()),
+        detail_limit=10,
+    )
+
+    assert "- As black: 0 games, 0.0% win rate" in prompt
+    assert "- As white: 2 games, 50.0% win rate" in prompt
+    assert "Direct comparison" not in prompt
+    assert "HIGHER than Black" not in prompt
+    assert "CPL BETTER as Black" not in prompt
+
+
+def test_the_color_comparison_is_written_when_both_sides_support_it() -> None:
+    """The floor withholds a verdict; it does not remove the feature."""
+    prompt = _prompt(QueryType.COMPARATIVE)
+    assert "→ Direct comparison: Black win rate is 14.1% HIGHER than White" in prompt
+    assert "plays 23.8 CPL BETTER as White" in prompt
+
+
 def test_a_one_game_bucket_is_never_named_in_a_superlative() -> None:
     prompt = _prompt(QueryType.COMPARATIVE)
     for line in prompt.splitlines():
