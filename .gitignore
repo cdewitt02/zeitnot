@@ -13,6 +13,15 @@ test_data/
 # shipped .claude/settings.local.json inside the release artifact.
 .claude/
 
+# Working notes that are not part of the public repo. Here for the same reason
+# .claude/ is: hatchling builds the sdist from .gitignore, so these three spent
+# a release cycle in .git/info/exclude — absent from GitHub, present in the
+# tarball. docs/prompt-analysis.md quotes a real assembled prompt, opponent
+# handles and all, which is the one thing this project promises not to disclose.
+docs/opensource-readiness/03-code-audit.md
+docs/feature-ideas.md
+docs/prompt-analysis.md
+
 # Corpus-derived goldens. Frozen at the Python cutover: the Go capture tool
 # they came from is gone, so these cannot be regenerated — see
 # testdata/golden/MANIFEST.md. They embed real opponent usernames (P0-8).
