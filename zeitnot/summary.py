@@ -2,8 +2,12 @@
 
 No I/O, no LLM, no Stockfish. The summary text **is** the embedded text, so any
 divergence here makes every stored embedding stale relative to its own source —
-silently, because nothing errors. This module is checked byte for byte against
-the Phase 0 goldens for all 74 stored games.
+silently, because nothing errors.
+
+The Phase 0 goldens no longer describe this module: they were captured before
+the draw fix (2026-08-31) and before the phase boundaries were corrected from
+plies to full moves (2026-09-14). Coverage that runs everywhere is in
+`tests/test_summary.py`; see `testdata/golden/MANIFEST.md` for what is stale.
 """
 
 from __future__ import annotations
@@ -23,8 +27,11 @@ from zeitnot.models.game import is_normalized_termination
 # from this module.
 TERMINATION_PREFIX = "Termination type: "
 
-OPENING_END = 10  # moves 1-10
-MIDDLEGAME_END = 25  # moves 11-25
+# Phase boundaries in **full moves**, not plies. A full move is one move by each
+# side, so full move 10 ends at ply index 19. `extract_summary_data` iterates
+# plies and converts, the same way `to_move_records` does in zeitnot/ingest.py.
+OPENING_END = 10  # full moves 1-10
+MIDDLEGAME_END = 25  # full moves 11-25
 # 26+ is endgame
 
 WINNING_THRESHOLD = 200  # +2.00 pawns = winning
@@ -90,11 +97,19 @@ def extract_summary_data(
 
         if move.centipawn_loss > biggest_swing:
             biggest_swing = move.centipawn_loss
+            # A ply number despite the name. Neither this nor `biggest_swing`
+            # reaches the summary text, so nothing renders it today; whatever
+            # first does has to convert it or label it as a ply.
             biggest_swing_move = i + 1
 
-        if i < OPENING_END:
+        # `i` indexes plies, and the boundaries above are full moves. Reading the
+        # index as a move number is what made "opening" mean the first five full
+        # moves and swept most of the middlegame into the endgame bucket — see
+        # docs/opensource-readiness/02-open-questions.md Q8.
+        move_number = i // 2 + 1
+        if move_number <= OPENING_END:
             phase = opening_stats
-        elif i < MIDDLEGAME_END:
+        elif move_number <= MIDDLEGAME_END:
             phase = middlegame_stats
         else:
             phase = endgame_stats

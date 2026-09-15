@@ -11,7 +11,13 @@ from __future__ import annotations
 import pytest
 
 from zeitnot.models import Game, MoveAnalysis, Player
-from zeitnot.summary import detect_pattern, extract_summary_data, generate_summary
+from zeitnot.summary import (
+    MIDDLEGAME_END,
+    OPENING_END,
+    detect_pattern,
+    extract_summary_data,
+    generate_summary,
+)
 
 PGN = (
     '[Event "Live Chess"]\n'
@@ -101,3 +107,73 @@ def test_the_drew_verdicts_are_reachable(was_winning: bool, was_losing: bool, wa
     data.was_winning = was_winning
     data.was_losing = was_losing
     assert detect_pattern(data) == want
+
+
+# ---------- the phase boundaries ----------
+
+
+def _ply_moves(count: int) -> list[MoveAnalysis]:
+    """`count` plies, each costing one centipawn more than the last.
+
+    Distinct CPLs make the bucket a move landed in recoverable from `total_cpl`
+    alone, so a boundary that is off by one is visible rather than absorbed.
+    """
+    return [
+        MoveAnalysis(played_move="a2a3", classification="good", centipawn_loss=i + 1)
+        for i in range(count)
+    ]
+
+
+@pytest.mark.parametrize("color", ["white", "black"])
+def test_phase_boundaries_are_full_moves_not_plies(color: str) -> None:
+    """The boundaries count full moves, so each phase is two plies per move.
+
+    This is the regression test for Q8. `extract_summary_data` iterates plies
+    and the constants are full moves, so reading the ply index as a move number
+    halved every boundary: "opening" meant full moves 1-5, and the endgame
+    bucket collected everything from full move 13 on. On one real 195-game
+    corpus that moved 45% of `weakest_phase` verdicts.
+
+    A full move is one ply for the player whose summary this is, so with 60
+    plies each side gets exactly 30 — 10 in the opening, 15 in the middlegame,
+    and 5 in the endgame, whichever colour they played.
+    """
+    username = "player" if color == "white" else "opponent"
+    data = extract_summary_data(_game("win", "resigned"), _ply_moves(60), username)
+
+    assert data.player_color == color
+    assert data.opening.move_count == OPENING_END
+    assert data.middlegame.move_count == MIDDLEGAME_END - OPENING_END
+    assert data.endgame.move_count == 30 - MIDDLEGAME_END
+    assert data.opening.move_count + data.middlegame.move_count + data.endgame.move_count == 30
+
+
+@pytest.mark.parametrize(
+    ("plies", "want_opening", "want_middlegame"),
+    [
+        # White moves on even ply indices, so full move 10 is ply index 18.
+        (19, 10, 0),  # ..through full move 10: opening is full
+        (21, 10, 1),  # ..full move 11 has started: the first middlegame move
+        (49, 10, 15),  # ..through full move 25: middlegame is full
+        (51, 10, 15),  # ..full move 26: the extra move lands in the endgame
+    ],
+)
+def test_the_opening_and_middlegame_close_on_the_documented_move(
+    plies: int, want_opening: int, want_middlegame: int
+) -> None:
+    """Each boundary is checked from both sides, not only from below."""
+    data = extract_summary_data(_game("win", "resigned"), _ply_moves(plies), "player")
+    assert data.opening.move_count == want_opening
+    assert data.middlegame.move_count == want_middlegame
+
+
+def test_a_short_game_never_reaches_the_later_phases() -> None:
+    """A phase with no moves must stay empty rather than borrowing from another.
+
+    `weakest_phase` scores an empty phase as 0.0 average, so a phase wrongly
+    credited with moves changes the verdict.
+    """
+    data = extract_summary_data(_game("win", "resigned"), _ply_moves(6), "player")
+    assert data.opening.move_count == 3
+    assert data.middlegame.move_count == 0
+    assert data.endgame.move_count == 0

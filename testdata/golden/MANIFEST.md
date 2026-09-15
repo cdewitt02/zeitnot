@@ -102,6 +102,22 @@ this does not affect CI. If you have both locally, expect the byte-for-byte
 summary assertions to fail on drawn games and nothing else. Live coverage of the
 fixed behavior is in `tests/test_summary.py`.
 
+**`summaries.json` is also stale for phase statistics as of 2026-09-14.** The
+phase boundaries were corrected from plies to full moves
+([Q8](../../docs/opensource-readiness/02-open-questions.md)), so
+`Opening`/`Middlegame`/`Endgame` `MoveCount` and `TotalCPL` differ on almost
+every game, and the `weakest_phase` line in the rendered text differs on roughly
+45% of them. `test_every_summary_data_field_matches_the_golden` and the
+byte-comparison above both fail against this file wherever a database and the
+golden are present — expected, not a regression.
+
+That is the second reason this file records history rather than behavior, and
+it is worth being precise about why the defect survived a byte-for-byte port:
+**every check on the phase buckets ran against a golden, and the golden was
+captured from the implementation that had the bug.** Parity testing cannot
+find a defect both sides share. Live coverage that needs no corpus is in
+`tests/test_summary.py`.
+
 **`prompts/` is stale wholesale as of 2026-09-14.** The assembled prompt was
 changed deliberately, in four places:
 

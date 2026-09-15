@@ -132,6 +132,70 @@ to verify the new output against anything. If it is a bug, the CHANGELOG (P4-2) 
 
 ---
 
+**Answered 2026-09-14: it was a bug, and the boundaries now count full moves.**
+
+The decisive evidence was not in `summary.py` at all. `to_move_records`
+(`zeitnot/ingest.py`) converts the same loop index with
+`move_number=(i // 2) + 1`, under the comment *"Chess numbering: indices 0,1 are
+move 1"* — so the distinction was understood, written down, and applied
+correctly to the `moves` table by the same author who wrote `i < OPENING_END`
+forty lines away. Two readings of one index in one codebase is a defect, not a
+specification.
+
+**What it was costing.** `i` indexes plies, so `OPENING_END = 10` meant full
+moves 1-5, `MIDDLEGAME_END = 25` meant 6-12, and the endgame bucket collected
+everything from full move 13 on — most of a median game, which on the corpus
+below is 30 full moves. That is why the distribution recorded against the
+captured corpus (53 endgame / 20 middlegame / 1 opening across 74 games) looked
+the way it did: it is the signature of a bucket that has swallowed the
+middlegame, not a finding about the player.
+
+Measured on a 195-game corpus, before and after:
+
+| | Opening | Middlegame | Endgame |
+|---|---|---|---|
+| Ply boundaries (before) | 7 | 60 | 128 |
+| Full-move boundaries (after) | 30 | 93 | 72 |
+
+**45% of games change their `weakest_phase` verdict.** The verdict reaches the
+Assembled Prompt twice — in each retrieved Game Summary, and in the aggregate
+`weakest_phases` tally `zeitnot/chat/prompts.py` builds from it.
+
+**The sequencing constraint was not binding.** The recommendation above put this
+behind the Python golden capture tool. That tool still does not exist, but the
+goldens it would verify against are already stale wholesale — `prompts/` since
+the 2026-09-14 prompt change, `summaries.json` for drawn games since
+2026-08-31 — so there was nothing left for them to verify. The replacement is
+coverage that needs no corpus at all: `tests/test_summary.py` now pins both
+boundaries from both sides and for both colours, and each new assertion was
+checked against the old code to confirm it fails there. **The absence of exactly
+that test is why this survived a port that was otherwise diffed byte for byte** —
+every check on the phase buckets ran against a golden, and a golden captured
+from the buggy implementation agrees with it.
+
+**Not folded in:** the remaining Preserved Defect (`weakest_phase`'s tie
+catch-all) and `classify_game_length`, which has the same ply/move ambiguity
+with no comment stating which was meant. Both still want a maintainer's call.
+
+**Operator action — and there is no command for it.** A fresh clone is
+unaffected; an existing corpus is stuck. `zeitnot data reembed` rebuilds vectors
+*from the stored summary text* and does not regenerate that text, and
+`zeitnot data analyze` skips any game where `game_exists()` is true, so
+re-running it changes nothing. The only paths available today are deleting the
+games and re-analyzing from scratch — full Stockfish cost — or building the
+regeneration pass, which has been an unbuilt Phase 8 item in
+[`../python-rewrite/00-plan.md`](../python-rewrite/00-plan.md) since the cutover
+and is what every "regenerate summaries from `games` and `moves`" sentence in
+these docs has been quietly assuming.
+
+Until it exists, a corpus spanning the fix carries both conventions at once, and
+nothing detects it — the aggregate `weakest_phases` tally in
+`zeitnot/chat/prompts.py` would sum old and new verdicts together. That is the
+same shape as the P0-8 lesson in [`01-roadmap.md`](./01-roadmap.md): **a change
+enforced only at write time does not reach a corpus that already exists.**
+
+---
+
 # Retired questions
 
 Kept for traceability. None of these were *answered by a maintainer decision* — the rewrite dissolved them.
