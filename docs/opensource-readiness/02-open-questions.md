@@ -158,8 +158,7 @@ Measured on a 195-game corpus, before and after:
 | Full-move boundaries (after) | 30 | 93 | 72 |
 
 **45% of games change their `weakest_phase` verdict.** The verdict reaches the
-Assembled Prompt twice — in each retrieved Game Summary, and in the aggregate
-`weakest_phases` tally `zeitnot/chat/prompts.py` builds from it.
+Assembled Prompt once, through the retrieved Game Summary in `_write_game_context`.
 
 **The sequencing constraint was not binding.** The recommendation above put this
 behind the Python golden capture tool. That tool still does not exist, but the
@@ -189,8 +188,7 @@ and is what every "regenerate summaries from `games` and `moves`" sentence in
 these docs has been quietly assuming.
 
 Until it exists, a corpus spanning the fix carries both conventions at once, and
-nothing detects it — the aggregate `weakest_phases` tally in
-`zeitnot/chat/prompts.py` would sum old and new verdicts together. That is the
+nothing detects it. That is the
 same shape as the P0-8 lesson in [`01-roadmap.md`](./01-roadmap.md): **a change
 enforced only at write time does not reach a corpus that already exists.**
 
