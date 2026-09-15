@@ -126,6 +126,7 @@ class Service:
             return NO_DATA_ANSWER
 
         system_prompt = self.build_prompt(qctx)
+        self._debug_prompt(qctx.query_type, system_prompt)
 
         # The system prompt is a field, not messages[0]: Anthropic takes it as a
         # top-level parameter, and each adapter puts it where its provider wants.
@@ -147,8 +148,6 @@ class Service:
         self._history.append(Message(role=ROLE_USER, content=question))
         self._history.append(Message(role=ROLE_ASSISTANT, content=resp.text))
         self._truncate_history()
-
-        self._debug_prompt(qctx.query_type, system_prompt)
 
         return resp.text
 
