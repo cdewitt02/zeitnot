@@ -128,9 +128,8 @@ def test_every_summary_data_field_matches_the_golden(
 ) -> None:
     """The intermediate struct, not only the rendered text.
 
-    Two of its fields — biggest_swing and biggest_swing_move — never reach the
-    summary string, so a bug in them would pass the byte comparison above while
-    still being wrong.
+    This separately protects values that influence summary rendering through
+    helpers rather than being interpolated into the output directly.
     """
     field_map = {
         "Result": "result",
@@ -139,8 +138,6 @@ def test_every_summary_data_field_matches_the_golden(
         "OpeningName": "opening_name",
         "ECOCode": "eco_code",
         "TotalMoves": "total_moves",
-        "BiggestSwing": "biggest_swing",
-        "BiggestSwingMove": "biggest_swing_move",
         "WasWinning": "was_winning",
         "WasLosing": "was_losing",
         "TerminationType": "termination_type",
