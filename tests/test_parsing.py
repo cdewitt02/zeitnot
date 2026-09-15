@@ -12,6 +12,15 @@ Coverage that exists but does not run is coverage that cannot fail, which is the
 same shape as the defect that survived a byte-for-byte port: every check on the
 phase buckets ran against a golden captured from the implementation that had the
 bug.
+
+**Read a failure here as "the parser changed", not "the parser broke."** Both
+tables are Go captures: the questions were chosen by hand, but the expected
+values are what the Go implementation returned. `parsing.json` is known to
+record wrong answers — `"What's my average centipawn loss?"` carries a
+`result: loss` filter, so a question about average accuracy retrieves only lost
+games — and this module asserts them, because pinning the behavior is still
+worth more than not pinning it. `testdata/golden/MANIFEST.md` lists what is
+known to be wrong.
 """
 
 from __future__ import annotations

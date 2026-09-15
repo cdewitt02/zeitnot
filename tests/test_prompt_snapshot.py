@@ -33,6 +33,7 @@ from __future__ import annotations
 import difflib
 import os
 import pathlib
+from typing import NamedTuple
 
 import pytest
 
@@ -41,6 +42,7 @@ from tests.promptfixtures import make_prompt
 from zeitnot.chat.classifier import QueryType
 
 SNAPSHOT_DIR = GOLDEN_DIR / "prompt_snapshots"
+
 
 # Every query type, plus the two branches that are not a query type:
 #
@@ -52,25 +54,48 @@ SNAPSHOT_DIR = GOLDEN_DIR / "prompt_snapshots"
 # `mentioned_openings` writes the OPENING-SPECIFIC STATS section, and both of
 # its outcomes are worth pinning: a named opening the player has games in, and
 # one they have none in, which must say so rather than going silent.
-CASES: list[tuple[str, QueryType, bool, list[str]]] = (
-    [(str(query_type), query_type, False, []) for query_type in QueryType]
-    + [("specific_games-openings", QueryType.SPECIFIC_GAMES, True, [])]
-    + [
-        ("recommendation-named-opening", QueryType.RECOMMENDATION, False, ["Caro Kann Defense"]),
-        ("recommendation-unplayed-opening", QueryType.RECOMMENDATION, False, ["Catalan"]),
-    ]
-)
+class Case(NamedTuple):
+    name: str
+    query_type: QueryType
+    about_openings: bool = False
+    mentioned_openings: list[str] = []  # noqa: RUF012 - read-only, never mutated
+    filters: list[str] = []  # noqa: RUF012 - read-only, never mutated
 
 
-@pytest.mark.parametrize(
-    ("name", "query_type", "about_openings", "mentioned_openings"), CASES, ids=lambda v: str(v)
-)
-def test_the_assembled_prompt_matches_its_snapshot(
-    name: str, query_type: QueryType, about_openings: bool, mentioned_openings: list[str]
-) -> None:
+CASES: list[Case] = [
+    *[Case(str(query_type), query_type) for query_type in QueryType],
+    Case("specific_games-openings", QueryType.SPECIFIC_GAMES, about_openings=True),
+    Case(
+        "recommendation-named-opening",
+        QueryType.RECOMMENDATION,
+        mentioned_openings=["Caro Kann Defense"],
+    ),
+    Case(
+        "recommendation-unplayed-opening",
+        QueryType.RECOMMENDATION,
+        mentioned_openings=["Catalan"],
+    ),
+    # The filter note, which `Service.build_prompt` appends after the router is
+    # done. It is the last prompt text still formatted to imitate Go's `%v` —
+    # space-separated inside square brackets — and the retired whole-corpus
+    # goldens were the only thing that had ever pinned it.
+    Case(
+        "specific_games-filtered",
+        QueryType.SPECIFIC_GAMES,
+        filters=["result: loss", "color: black", "time_class: blitz"],
+    ),
+]
+
+
+@pytest.mark.parametrize("case", CASES, ids=lambda c: c.name)
+def test_the_assembled_prompt_matches_its_snapshot(case: Case) -> None:
     got = make_prompt(
-        query_type, about_openings=about_openings, mentioned_openings=mentioned_openings
+        case.query_type,
+        about_openings=case.about_openings,
+        mentioned_openings=case.mentioned_openings,
+        filters=case.filters,
     )
+    name = case.name
     path: pathlib.Path = SNAPSHOT_DIR / f"{name}.txt"
 
     if os.environ.get("ZEITNOT_UPDATE_PROMPT_SNAPSHOTS"):
@@ -104,7 +129,7 @@ def test_every_snapshot_on_disk_belongs_to_a_case() -> None:
     Nothing collects it, so nothing compares it, and the file sits in the
     repository looking like coverage.
     """
-    expected = {f"{case[0]}.txt" for case in CASES}
+    expected = {f"{case.name}.txt" for case in CASES}
     found = {path.name for path in SNAPSHOT_DIR.glob("*.txt")}
     assert found == expected, (
         f"orphaned snapshots: {sorted(found - expected)}; missing: {sorted(expected - found)}"

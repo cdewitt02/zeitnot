@@ -63,15 +63,23 @@ short version is that their remaining value was cross-language, Go is gone, and
 the corpus they described no longer existed. There is nothing left to recapture
 and no capture tool gating any other work.
 
+**The three JSON tables are still Go captures.** Their inputs were chosen by
+hand, but their expected values are what the Go implementation returned — they
+came out of the same Phase 0 commit as the files that were retired. They survive
+because they are committed, reviewable and cheap to run, not because anyone
+re-derived them from a specification. **`parsing.json` is known to encode
+defects** (a question about average centipawn *loss* records a filter for lost
+games); read a failure there as "the parser changed", never as "the parser
+broke", and see `testdata/golden/MANIFEST.md`.
+
 **One rule carried over intact: a golden regenerated from the current tree
-always matches the current tree.** The three JSON tables were *written* rather
-than captured — grids and question sets chosen to reach branches a corpus does
-not — so reviewing one means reading it. `prompt_snapshots/` is the exception
-that proves the rule: it *is* rendered from the code it checks, and it is safe
-only because it renders from six hand-written stat buckets and is committed, so
-the diff lands in the pull request that caused it. Regenerate it with
-`ZEITNOT_UPDATE_PROMPT_SNAPSHOTS=1` and commit the result alongside the change
-that moved it, never on its own to clear a red test.
+always matches the current tree.** `prompt_snapshots/` is the one set here that
+*is* rendered from the code it checks, and it is safe only because it renders
+from hand-written stat buckets and is committed, so the diff lands in the pull
+request that caused it. It pins `Service.build_prompt` — the whole prompt a
+provider receives, including the filter note the router does not add. Regenerate
+it with `ZEITNOT_UPDATE_PROMPT_SNAPSHOTS=1` and commit the result alongside the
+change that moved it, never on its own to clear a red test.
 
 ## What the database checks that no file can
 

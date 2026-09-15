@@ -26,18 +26,49 @@ that had the bug.
 Nothing was deleted without its replacement landing first. The table in the ADR
 maps each retired assertion to where it lives now.
 
+## The three JSON tables are Go captures, and that still matters
+
+All three came out of the same `c132190 Phase 0: capture goldens and freeze the
+parity reference` commit as the files that were retired. Their *inputs* were
+chosen by hand — a grid of evaluations, a fixed question set — but their
+**expected values are what the Go implementation returned**, not what anybody
+decided was correct.
+
+That is a weaker claim than corpus-independence, and it is the one that matters
+now that the goldens they were captured alongside are gone. They survive the
+retirement because they are committed, reviewable, and cheap to run in CI, not
+because anybody has re-derived their contents from a specification.
+
+**`parsing.json` is known to encode defects.** `"What's my average centipawn
+loss?"` records `result: loss`, so a question about average accuracy filters to
+lost games; `"...what's my win rate?"` records `result: win`; and `"Show me
+games where I threw a winning position"` records `result: win` for a question
+about losses. Two entries reduce the semantic query to the empty string. These
+are Go's answers, asserted as correct by `tests/test_parsing.py`, which runs on
+every pull request. Splitting the intended behavior from the defects needs a
+maintainer's call on the parser's specification, and is tracked separately —
+until then, read a failure here as "the parser changed", never as "the parser
+broke".
+
+`classification.json` and `eval_helpers.json` have no known problem of this
+kind, and `eval_helpers.json` is checked independently: `tests/test_engine.py`
+asserts every classification boundary by hand alongside reading the table, so a
+wrong value in the file would collide with an assertion that does not come from
+Go.
+
 ## The two rules that survive
 
 **A golden regenerated from the current tree always matches the current tree.**
-That is why the three JSON tables above were *written*, not captured: they are
-grids and question sets chosen to reach branches a corpus does not, and reviewing
-one means reading it rather than trusting the process that produced it.
+Regenerating any of these to make a test pass destroys the only thing it was
+telling you.
 
 `prompt_snapshots/` is the one file set here that *is* rendered from the code it
 checks, which makes the rule worth restating precisely. It is safe because it is
-rendered from `tests/promptfixtures.py` — six hand-written stat buckets, no
-corpus — and because it is committed. A change to the prompt path shows up as a
-readable diff in the pull request that caused it, which is the review. Regenerate
+rendered from `tests/promptfixtures.py` — hand-written stat buckets, no corpus —
+and because it is committed. A change to the prompt path shows up as a readable
+diff in the pull request that caused it, which is the review. It pins
+`Service.build_prompt`, the whole prompt a provider receives, rather than
+`QueryRouter.build_prompt`, which is that minus the filter note. Regenerate
 with:
 
 ```bash

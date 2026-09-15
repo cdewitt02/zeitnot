@@ -60,6 +60,11 @@ in JSON. They are committed, corpus-independent, and still testing behavior.
 `tests/test_parity_engine.py` became `tests/test_engine.py`; the classifier and
 parser tables moved to `tests/test_parsing.py`.
 
+Kept is not the same as vindicated. All three are still Go captures from the same
+Phase 0 commit, so their expected values are what Go returned rather than what
+anyone decided was right — see [Known debt](#known-debt-the-kept-tables-are-still-go-output)
+below.
+
 **Retired.** `summaries.json` with all of `tests/test_parity_summary.py`;
 `prompts/` with the corpus-dependent half of `tests/test_parity_prompt.py`;
 `analysis.json` with the two engine tests that read it.
@@ -144,6 +149,44 @@ that caused it. A golden nobody can see proves nothing.
 a Python capture tool the blocking dependency for P0-8 and both Preserved
 Defects, and the readiness roadmap sequenced work behind it. That constraint is
 lifted: there is nothing left to recapture.
+
+## Known debt: the kept tables are still Go output
+
+Retiring the corpus-derived captures does not make the remaining three
+independent. Their inputs were hand-chosen; their expected values were recorded
+from the Go implementation, and nothing has re-derived them from a
+specification.
+
+**`parsing.json` demonstrably encodes defects.** Three of the twelve frozen eval
+questions parse wrongly, and the file records the wrong answers as correct:
+
+| Question | Recorded | Problem |
+|---|---|---|
+| `What's my average centipawn loss?` | `result: loss` | a metric name read as a result filter; retrieval sees only lost games |
+| `How many games have I played and what's my win rate?` | `result: win` | same, for wins |
+| `Show me games where I threw a winning position` | `result: win` | the question is about losses |
+
+Separately, matched keywords are stripped from the semantic query even when no
+filter is set, so the text handed to the embedder is mangled — `Am I better with
+white or black?` becomes `Am I better or black` — and two entries reduce to the
+**empty string**, which is this project's characteristic silent failure reaching
+the embedder.
+
+29 of 37 entries strip something. Most are the intended design: `my games as
+black` becoming `my games` plus a colour filter is the feature working. Nothing
+in the file distinguishes the two groups, and deciding which is which is a
+specification question about the parser rather than something a diff can settle.
+
+**This retirement made the problem more acute, not less.** Moving those tests out
+of the corpus subset (#25) was right — the parser had no pull request coverage at
+all — but it means CI now enforces these values on every change. Tracked
+separately; until it is resolved, a failure in `tests/test_parsing.py` means "the
+parser changed", not "the parser broke".
+
+`classification.json` has no known problem of this kind. `eval_helpers.json` is
+partly self-checking: `tests/test_engine.py` asserts every classification
+boundary by hand alongside reading the table, so a wrong value would collide with
+an assertion that did not come from Go.
 
 ## Alternatives considered
 

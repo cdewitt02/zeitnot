@@ -17,8 +17,10 @@ from typing import cast
 
 from zeitnot.chat.classifier import QueryType
 from zeitnot.chat.router import QueryContext, QueryRouter
+from zeitnot.chat.service import Config, Service
 from zeitnot.db import DB
 from zeitnot.db.records import GameRecord, SimilarGameResult
+from zeitnot.llm.base import ChatModel, Embedder
 from zeitnot.models import ColorStats, OpeningStats, PlayerStats
 from zeitnot.search.hybrid import HybridSearcher
 
@@ -32,6 +34,24 @@ def make_router() -> QueryRouter:
     prompt path ever grows a query of its own, this raises rather than quietly
     passing."""
     return QueryRouter(cast(DB, None), cast(HybridSearcher, None), USERNAME, 100)
+
+
+def make_service() -> Service:
+    """A Service wired with no collaborators, for `build_prompt` alone.
+
+    `Service.__init__` only assigns and constructs two pure objects, so the
+    three casts never get dereferenced — the same trick `make_router` uses, one
+    layer out. That layer matters: `Service.build_prompt` is the whole Assembled
+    Prompt, `QueryRouter.build_prompt` is the whole thing *minus the filter
+    note*, and the note is the only prompt text still formatted to imitate Go's
+    `%v`. Pinning the router alone would leave it uncovered.
+    """
+    return Service(
+        cast(DB, None),
+        cast(ChatModel, None),
+        cast(Embedder, None),
+        Config(username=USERNAME, num_similar=100, detail_limit=DETAIL_LIMIT),
+    )
 
 
 def make_stats() -> PlayerStats:
@@ -115,14 +135,16 @@ def make_prompt(
     *,
     about_openings: bool = False,
     mentioned_openings: list[str] | None = None,
+    filters: list[str] | None = None,
 ) -> str:
-    return make_router().build_prompt(
+    """The whole Assembled Prompt, exactly as a provider would receive it."""
+    return make_service().build_prompt(
         QueryContext(
             query_type=query_type,
             player_stats=make_stats(),
             games=make_games(),
             about_openings=about_openings,
             mentioned_openings=mentioned_openings or [],
-        ),
-        detail_limit=DETAIL_LIMIT,
+            filters=filters or [],
+        )
     )
