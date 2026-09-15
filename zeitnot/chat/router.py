@@ -643,18 +643,26 @@ class QueryRouter:
         if not stats.stats_by_opening:
             return
 
-        sb.write("OPENING-SPECIFIC STATS (for openings mentioned in your question):\n")
-
+        matches: list[tuple[str, OpeningStats]] = []
         for opening in mentioned:
             opening_lower = opening.lower()
             for eco in sorted(stats.stats_by_opening):
                 o = stats.stats_by_opening[eco]
                 if eco.lower() == opening_lower or opening_lower in o.opening_name.lower():
-                    name = o.opening_name or eco
-                    sb.write(f"\n{name} ({eco}):\n")
-                    sb.write(f"  - Games: {o.games}\n")
-                    sb.write(f"  - Record: {o.wins} wins, {o.losses} losses, {o.draws} draws\n")
-                    sb.write(f"  - Win rate: {o.win_rate:.1f}%\n")
-                    sb.write(f"  - Average CPL: {o.avg_cpl:.1f}\n")
+                    matches.append((eco, o))
+
+        sb.write("OPENING-SPECIFIC STATS (for openings mentioned in your question):\n")
+        if not matches:
+            sb.write(f"No analyzed games in: {', '.join(mentioned)}\n")
+        for eco, matched_stats in matches:
+            name = matched_stats.opening_name or eco
+            sb.write(f"\n{name} ({eco}):\n")
+            sb.write(f"  - Games: {matched_stats.games}\n")
+            sb.write(
+                f"  - Record: {matched_stats.wins} wins, {matched_stats.losses} losses, "
+                f"{matched_stats.draws} draws\n"
+            )
+            sb.write(f"  - Win rate: {matched_stats.win_rate:.1f}%\n")
+            sb.write(f"  - Average CPL: {matched_stats.avg_cpl:.1f}\n")
 
         sb.write("\n")
