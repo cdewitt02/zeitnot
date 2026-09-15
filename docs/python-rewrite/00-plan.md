@@ -541,6 +541,13 @@ what makes that safe.
   unreachable — so fixing it changes more stored text than any other item here, and every later change
   is cheaper once the regeneration pass has been done once.
 
+- **The phase boundary (readiness [Q8](../opensource-readiness/02-open-questions.md)) — DONE
+  2026-09-14.** It was a bug: the loop index is a ply and the constants are full moves, so both
+  boundaries were halved. Taken *ahead* of the capture tool below, because the goldens that tool would
+  verify against are themselves stale — the replacement verification is corpus-free tests in
+  `tests/test_summary.py`, each checked against the old code to confirm it fails there. Stored summaries
+  need the regeneration pass plus `zeitnot data reembed`; a fresh clone does not.
+
 - **Regenerating the goldens as a Python-native harness.** **Now unblocked and now blocking:** `legacy/`
   was deleted on 2026-08-31, so the Go capture tool is gone and *nothing* can reproduce
   `testdata/golden/`. Until a small Python capture tool exists, every golden is frozen — which is fine

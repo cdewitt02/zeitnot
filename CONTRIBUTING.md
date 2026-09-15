@@ -7,11 +7,16 @@ Contributions are welcome. Bug reports and feature requests go through the
 ## Setup
 
 ```bash
-uv venv
-uv pip install -e ".[dev]"
+uv sync --dev                  # the virtualenv, zeitnot, and the four gates
 cp .env.example .env
-zeitnot doctor                 # every startup check, in one pass
+uv run zeitnot doctor          # every startup check, in one pass
 ```
+
+**`uv sync --dev`, not `uv pip install -e ".[dev]"`.** The development
+dependencies are a [PEP 735](https://peps.python.org/pep-0735/) dependency
+group, not an extra, and asking for an extra that does not exist is a *warning*:
+the install exits 0 and silently contains none of the gates below. Either prefix
+commands with `uv run`, or activate the virtualenv yourself.
 
 You will also need PostgreSQL with pgvector, Stockfish on `PATH`, and — for the
 default configuration — Ollama with `nomic-embed-text` and `llama3.2` pulled.
@@ -25,13 +30,15 @@ directory itself, and anything already exported outranks the file.
 ## The checks
 
 ```bash
-ruff check . && ruff format --check .
-mypy
-pyright
-pytest
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+uv run pyright
+uv run pytest -m "not corpus"
 ```
 
-All four must pass. CI runs exactly these.
+All four must pass, and CI runs exactly these on 3.11 and 3.13. The one
+difference is the last line: CI has no database, so it runs the `not corpus`
+subset. A bare `pytest` locally is a superset of it, not a different check.
 
 **`mypy --strict` is not optional and not negotiable down.** It is configured in
 `pyproject.toml` and it is what replaced the Go compiler; a `# type: ignore`
@@ -54,8 +61,7 @@ check rather than skipping silently.
 |---|---|---|
 | *(unmarked)* | nothing | never — these must always run |
 | `corpus` | `DATABASE_URL` pointing at a populated database | it is unset |
-| `golden` | locally regenerated corpus goldens | `testdata/golden/prompts/` is absent |
-| `ollama` | a running Ollama server | it is unreachable |
+| `golden` | locally captured corpus goldens | the file the test reads is absent |
 
 ```bash
 pytest -m "not corpus"          # the portable subset — what a fresh clone runs

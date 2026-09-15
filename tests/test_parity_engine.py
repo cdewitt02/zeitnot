@@ -107,6 +107,11 @@ pytest_stockfish = pytest.mark.skipif(
 
 @pytest_stockfish
 @pytest.mark.golden
+# Also `corpus`: the `_pgns` fixture reads PGNs from the live database. Without
+# this it sat in the `not corpus` subset CI runs and passed only because the
+# golden it needs is absent there — with a database and a golden both present it
+# raised KeyError rather than skipping.
+@pytest.mark.corpus
 def test_reanalysis_matches_the_go_analysis_move_for_move(_pgns: dict[str, str]) -> None:
     """Re-analyze the same games Go did and diff every field of every move.
 
@@ -150,11 +155,29 @@ def test_reanalysis_matches_the_go_analysis_move_for_move(_pgns: dict[str, str])
 
 @pytest.fixture(scope="module")
 def _pgns(db: DB) -> dict[str, str]:
+    """The PGNs `analysis.json` was captured from, or a skip that says why not.
+
+    A partial result used to be returned silently, so the test raised `KeyError`
+    on the first game the database did not have. A corpus rebuilt or re-ingested
+    since the capture is the ordinary cause of that, and it is a recapture
+    question rather than a failure — `prompts/` already refuses on a fingerprint
+    mismatch for exactly this reason, and this is the equivalent for the one
+    golden that never had the check.
+    """
     goldens: list[dict[str, Any]] = load_golden("analysis.json")
     uuids = [g["game_uuid"] for g in goldens]
     with db.cursor() as cur:
         cur.execute("SELECT uuid::text, pgn FROM games WHERE uuid::text = ANY(%s)", (uuids,))
-        return {row[0]: row[1] for row in cur.fetchall()}
+        pgns: dict[str, str] = {row[0]: row[1] for row in cur.fetchall()}
+
+    missing = [u for u in uuids if u not in pgns]
+    if missing:
+        pytest.skip(
+            f"{len(missing)} of {len(uuids)} games in analysis.json are absent from this "
+            "database, so it is not the corpus the golden was captured from — see "
+            "testdata/golden/MANIFEST.md"
+        )
+    return pgns
 
 
 @pytest_stockfish

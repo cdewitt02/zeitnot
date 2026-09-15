@@ -24,7 +24,7 @@ from typing import Any
 
 import pytest
 
-from tests.conftest import GOLDEN_DIR, load_golden
+from tests.conftest import GOLDEN_DIR, load_golden, require_golden
 from zeitnot.chat.classifier import classify_query, extract_mentioned_openings
 from zeitnot.chat.service import Config, Service
 from zeitnot.config import resolve
@@ -255,12 +255,20 @@ def test_every_query_type_is_exercised_by_the_frozen_set(
     }
 
 
-def test_goldens_are_present_or_the_suite_says_why() -> None:
-    """A directory-shape check, so a missing capture reads as "regenerate"
-    rather than as a mysterious skip."""
-    manifest = GOLDEN_DIR / "prompts" / "manifest.json"
-    assert manifest.exists()
+def test_a_capture_that_exists_is_complete() -> None:
+    """A half-written capture is worse than none: the missing files read as passing.
+
+    **Skips when there is no capture at all.** `prompts/` is gitignored and
+    nothing in the tree can produce it, so absence is the normal state of every
+    fresh clone rather than something to report. This asserted presence until
+    2026-09-14, which made a bare `pytest` — the command CONTRIBUTING gives —
+    red on every clone, and pointed at `cmd/golden`, deleted with the Go tree.
+    """
+    manifest = require_golden(GOLDEN_DIR / "prompts" / "manifest.json")
     questions = json.loads(manifest.read_text())["questions"]
     for index in range(1, len(questions) + 1):
         path: pathlib.Path = GOLDEN_DIR / "prompts" / f"{index:02d}.txt"
-        assert path.exists(), f"missing {path}; rerun cmd/golden"
+        assert path.exists(), (
+            f"missing {path}: this capture is incomplete. There is no tool that can "
+            "regenerate it — see testdata/golden/MANIFEST.md."
+        )
