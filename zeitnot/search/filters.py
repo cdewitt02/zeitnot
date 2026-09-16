@@ -138,9 +138,9 @@ class GameFilters:
                 args.extend([self.username, self.max_rating])
 
         if self.date_from is not None:
-            add("g.created_at >= %s", self.date_from)
+            add("g.played_at >= %s", self.date_from)
         if self.date_to is not None:
-            add("g.created_at <= %s", self.date_to)
+            add("g.played_at <= %s", self.date_to)
 
         return FilterResult(clause=" AND ".join(conditions), args=args)
 
