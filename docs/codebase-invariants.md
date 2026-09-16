@@ -69,8 +69,9 @@ came out of the same Phase 0 commit as the files that were retired. They survive
 because they are committed, reviewable and cheap to run, not because anyone
 re-derived them from a specification. **`parsing.json` is known to encode
 defects** (a question about average centipawn *loss* records a filter for lost
-games); read a failure there as "the parser changed", never as "the parser
-broke", and see `testdata/golden/MANIFEST.md`.
+games) — [#40](https://github.com/cdewitt02/zeitnot/issues/40), with the table
+itself tracked as [#41](https://github.com/cdewitt02/zeitnot/issues/41). Read a
+failure there as "the parser changed", never as "the parser broke".
 
 **One rule carried over intact: a golden regenerated from the current tree
 always matches the current tree.** `prompt_snapshots/` is the one set here that

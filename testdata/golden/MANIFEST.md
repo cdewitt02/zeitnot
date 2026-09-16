@@ -39,16 +39,17 @@ now that the goldens they were captured alongside are gone. They survive the
 retirement because they are committed, reviewable, and cheap to run in CI, not
 because anybody has re-derived their contents from a specification.
 
-**`parsing.json` is known to encode defects.** `"What's my average centipawn
-loss?"` records `result: loss`, so a question about average accuracy filters to
-lost games; `"...what's my win rate?"` records `result: win`; and `"Show me
-games where I threw a winning position"` records `result: win` for a question
-about losses. Two entries reduce the semantic query to the empty string. These
-are Go's answers, asserted as correct by `tests/test_parsing.py`, which runs on
-every pull request. Splitting the intended behavior from the defects needs a
-maintainer's call on the parser's specification, and is tracked separately —
-until then, read a failure here as "the parser changed", never as "the parser
-broke".
+**`parsing.json` is known to encode defects.** Four of the twelve frozen eval
+questions get a filter they should not: `"What's my average centipawn loss?"`
+records `result: loss`, so a question about average accuracy retrieves only lost
+games; `"...what's my win rate?"` records `result: win`; `"Show me games where I
+threw a winning position"` records `result: win` for a question about losses;
+and `"Am I better with white or black?"` records `color: white`, filtering a
+comparison to one side of it. These are Go's answers, asserted as correct by
+`tests/test_parsing.py`, which runs on every pull request. The defects are
+[#40](https://github.com/cdewitt02/zeitnot/issues/40) and splitting the table is
+[#41](https://github.com/cdewitt02/zeitnot/issues/41) — until those land, read a
+failure here as "the parser changed", never as "the parser broke".
 
 `classification.json` and `eval_helpers.json` have no known problem of this
 kind, and `eval_helpers.json` is checked independently: `tests/test_engine.py`

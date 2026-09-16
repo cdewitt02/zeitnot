@@ -157,7 +157,7 @@ independent. Their inputs were hand-chosen; their expected values were recorded
 from the Go implementation, and nothing has re-derived them from a
 specification.
 
-**`parsing.json` demonstrably encodes defects.** Three of the twelve frozen eval
+**`parsing.json` demonstrably encodes defects.** Four of the twelve frozen eval
 questions parse wrongly, and the file records the wrong answers as correct:
 
 | Question | Recorded | Problem |
@@ -165,12 +165,13 @@ questions parse wrongly, and the file records the wrong answers as correct:
 | `What's my average centipawn loss?` | `result: loss` | a metric name read as a result filter; retrieval sees only lost games |
 | `How many games have I played and what's my win rate?` | `result: win` | same, for wins |
 | `Show me games where I threw a winning position` | `result: win` | the question is about losses |
+| `Am I better with white or black?` | `color: white` | a comparison filtered to one side of itself |
 
-Separately, matched keywords are stripped from the semantic query even when no
-filter is set, so the text handed to the embedder is mangled — `Am I better with
-white or black?` becomes `Am I better or black` — and two entries reduce to the
-**empty string**, which is this project's characteristic silent failure reaching
-the embedder.
+The matched keyword is also removed from the semantic query, so the text handed
+to the embedder is mangled on top of the wrong filter — `Am I better with white
+or black?` becomes `Am I better or black`. A query that strips away to *nothing*
+is already handled: `zeitnot/search/hybrid.py:70` falls back to the original
+text rather than embedding an empty string. The partially stripped case is not.
 
 29 of 37 entries strip something. Most are the intended design: `my games as
 black` becoming `my games` plus a colour filter is the feature working. Nothing
@@ -179,9 +180,10 @@ specification question about the parser rather than something a diff can settle.
 
 **This retirement made the problem more acute, not less.** Moving those tests out
 of the corpus subset (#25) was right — the parser had no pull request coverage at
-all — but it means CI now enforces these values on every change. Tracked
-separately; until it is resolved, a failure in `tests/test_parsing.py` means "the
-parser changed", not "the parser broke".
+all — but it means CI now enforces these values on every change. The defects are
+[#40](https://github.com/cdewitt02/zeitnot/issues/40); the table split is
+[#41](https://github.com/cdewitt02/zeitnot/issues/41). Until those land, a failure
+in `tests/test_parsing.py` means "the parser changed", not "the parser broke".
 
 `classification.json` has no known problem of this kind. `eval_helpers.json` is
 partly self-checking: `tests/test_engine.py` asserts every classification

@@ -19,8 +19,9 @@ values are what the Go implementation returned. `parsing.json` is known to
 record wrong answers — `"What's my average centipawn loss?"` carries a
 `result: loss` filter, so a question about average accuracy retrieves only lost
 games — and this module asserts them, because pinning the behavior is still
-worth more than not pinning it. `testdata/golden/MANIFEST.md` lists what is
-known to be wrong.
+worth more than not pinning it. The defects are tracked as issue #40 and the
+table split as #41; `testdata/golden/MANIFEST.md` lists what is known to be
+wrong.
 """
 
 from __future__ import annotations
