@@ -280,6 +280,22 @@ def test_a_non_streaming_model_still_works_through_ask_stream() -> None:
     assert deltas == [answer]
 
 
+def test_debug_prompt_is_printed_before_provider_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    chat = FakeChatModel(error=RuntimeError("provider is down"))
+    service = _service(chat, _stats(), [_game("a", "won as white in blitz\n")])
+    monkeypatch.setenv("ZEITNOT_DEBUG_PROMPT", "1")
+
+    with pytest.raises(RuntimeError, match="provider is down"):
+        service.ask("Am I better with white?")
+
+    stderr = capsys.readouterr().err
+    assert "=== SYSTEM PROMPT ===" in stderr
+    assert "You are a chess coach for magnus" in stderr
+    assert "=== END PROMPT ===" in stderr
+
+
 def test_the_filter_note_is_appended_in_gos_slice_format() -> None:
     """`%v` on a []string is space-separated inside brackets. It looks odd in
     Python and it is part of the assembled prompt, so it is preserved."""

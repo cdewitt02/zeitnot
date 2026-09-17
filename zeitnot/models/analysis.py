@@ -49,8 +49,6 @@ class GameSummaryData:
     middlegame: PhaseStats = field(default_factory=PhaseStats)
     endgame: PhaseStats = field(default_factory=PhaseStats)
 
-    biggest_swing: int = 0  # largest single-move CPL by the player
-    biggest_swing_move: int = 0
     was_winning: bool = False
     was_losing: bool = False
 
