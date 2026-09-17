@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from zeitnot.search.filters import GameFilters
 
@@ -212,7 +212,7 @@ class QueryParser:
                     remaining = pattern_re.sub("", remaining)
                     break
 
-        now = datetime.now()
+        now = datetime.now(UTC)
         for time_pattern in TIME_PATTERNS:
             if time_pattern.pattern.search(lower):
                 filters.date_from = now - time_pattern.duration

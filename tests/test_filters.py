@@ -9,11 +9,13 @@ result set, which `test_db_corpus.py` asserts against the live corpus.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import sqlite3
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from zeitnot.search import GameFilters
+from zeitnot.search.parser import QueryParser
 
 
 @pytest.mark.parametrize(
@@ -109,3 +111,73 @@ def test_str() -> None:
     assert "color=black" in text
     assert "time=blitz" in text
     assert str(GameFilters()) == "no filters"
+
+
+@pytest.mark.parametrize(
+    ("date_from", "date_to", "expected"),
+    [
+        (datetime(2026, 9, 1, tzinfo=UTC), None, [2, 3, 4]),
+        (None, datetime(2026, 9, 15, tzinfo=UTC), [1, 2, 3]),
+        (datetime(2026, 9, 1, tzinfo=UTC), datetime(2026, 9, 15, tzinfo=UTC), [2, 3]),
+    ],
+)
+def test_date_filters_use_played_time(
+    date_from: datetime | None, date_to: datetime | None, expected: list[int]
+) -> None:
+    """An old game imported today is still old; both bounds are inclusive.
+
+    Execute the portable WHERE fragment in SQLite with ISO UTC timestamps.
+    Only the driver's placeholder syntax is translated; this does not test
+    PostgreSQL's TIMESTAMPTZ conversion.
+    """
+    result = GameFilters(username="u", date_from=date_from, date_to=date_to).build_where()
+    connection = sqlite3.connect(":memory:")
+    try:
+        connection.execute(
+            "CREATE TABLE games (id INTEGER, white_username TEXT, black_username TEXT, "
+            "played_at TEXT, created_at TEXT)"
+        )
+        connection.executemany(
+            "INSERT INTO games VALUES (?, ?, ?, ?, ?)",
+            [
+                (i, "u", "opponent", played.isoformat(), "2026-09-16T00:00:00+00:00")
+                for i, played in enumerate(
+                    [
+                        datetime(2025, 9, 1, tzinfo=UTC),
+                        datetime(2026, 9, 1, tzinfo=UTC),
+                        datetime(2026, 9, 15, tzinfo=UTC),
+                        datetime(2026, 9, 16, tzinfo=UTC),
+                    ],
+                    start=1,
+                )
+            ],
+        )
+        rows = connection.execute(
+            "SELECT g.id FROM games g WHERE " + result.clause.replace("%s", "?") + " ORDER BY g.id",
+            [arg.isoformat() if isinstance(arg, datetime) else arg for arg in result.args],
+        ).fetchall()
+        assert [row[0] for row in rows] == expected
+    finally:
+        connection.close()
+
+
+@pytest.mark.parametrize(
+    ("query", "days"),
+    [
+        ("today", 1),
+        ("yesterday", 2),
+        ("this week", 7),
+        ("last week", 14),
+        ("this month", 30),
+        ("last month", 60),
+        ("this year", 365),
+        ("recent", 14),
+    ],
+)
+def test_relative_date_filters_are_utc(query: str, days: int) -> None:
+    before = datetime.now(UTC)
+    filters = QueryParser().parse(query, "u").filters
+    after = datetime.now(UTC)
+    assert filters.date_from is not None
+    assert filters.date_from.tzinfo is UTC
+    assert before - timedelta(days=days) <= filters.date_from <= after - timedelta(days=days)
