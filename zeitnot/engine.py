@@ -211,6 +211,45 @@ def read_pgn(pgn_text: str) -> chess.pgn.Game:
     return game
 
 
+def _replay(pgn_text: str) -> tuple[list[chess.Board], list[chess.Move]]:
+    """Walk the mainline, returning every position and every move played.
+
+    `positions` is one longer than `moves`: it holds the position before each
+    move plus the final one after the last.
+    """
+    game = read_pgn(pgn_text)
+    board = game.board()
+    positions = [board.copy(stack=False)]
+    moves: list[chess.Move] = []
+    for move in game.mainline_moves():
+        moves.append(move)
+        board.push(move)
+        positions.append(board.copy(stack=False))
+    return positions, moves
+
+
+def move_identities(pgn_text: str) -> list[tuple[str, str]]:
+    """Every move's `played_move` and `fen_before`, without an engine.
+
+    These are the half of a `moves` row that does not come from Stockfish — they
+    fall out of PGN parsing and board replay — so unlike the evaluations they
+    stay reproducible against a corpus analyzed by some other engine build.
+    `analyze_game` fills the same two fields from the same walk, which is what
+    makes comparing this against stored rows a test of the real path.
+
+    en_passant="fen". python-chess defaults to "legal", which omits the
+    en-passant square unless a capture is actually available; Go's notnil/chess
+    emitted it after any double pawn push, and the stored `fen_before` column
+    has the square. This is the difference that a port review would not catch
+    and a diff against the corpus does.
+    """
+    return _identities(*_replay(pgn_text))
+
+
+def _identities(positions: list[chess.Board], moves: list[chess.Move]) -> list[tuple[str, str]]:
+    return [(move.uci(), positions[i].fen(en_passant="fen")) for i, move in enumerate(moves)]
+
+
 def analyze_game(engine: Engine, pgn_text: str, depth: int) -> list[MoveAnalysis]:
     """Analyze every move of a game.
 
@@ -219,19 +258,11 @@ def analyze_game(engine: Engine, pgn_text: str, depth: int) -> list[MoveAnalysis
     and it is deliberately **not** folded in here: an optimization inside a port
     means a diff that fails can no longer be attributed.
     """
-    game = read_pgn(pgn_text)
-
-    # en_passant="fen" on every FEN below. python-chess defaults to "legal",
-    # which omits the en-passant square unless a capture is actually available;
-    # Go's notnil/chess emits it after any double pawn push. The stored
-    # fen_before column has the square, so "fen" is the form that matches.
-    board = game.board()
-    positions = [board.copy(stack=False)]
-    moves: list[chess.Move] = []
-    for move in game.mainline_moves():
-        moves.append(move)
-        board.push(move)
-        positions.append(board.copy(stack=False))
+    positions, moves = _replay(pgn_text)
+    # The engine-independent half of every row, built by the same helper that
+    # `move_identities` exposes, so the two cannot drift apart on the
+    # en-passant question documented there.
+    identities = _identities(positions, moves)
 
     analyses: list[MoveAnalysis] = []
     for i, played in enumerate(moves):
@@ -272,10 +303,10 @@ def analyze_game(engine: Engine, pgn_text: str, depth: int) -> list[MoveAnalysis
                 mate_in=before.mate_in,
                 pv=before.pv,
                 depth=before.depth,
-                played_move=played.uci(),
+                played_move=identities[i][0],
                 centipawn_loss=cpl,
                 classification=classification,
-                fen_before=positions[i].fen(en_passant="fen"),
+                fen_before=identities[i][1],
             )
         )
 

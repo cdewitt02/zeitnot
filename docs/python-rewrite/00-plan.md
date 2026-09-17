@@ -211,7 +211,7 @@ Two packages produce values that are *stored* and then compared against future v
 port produces even slightly different output, the existing corpus and the new rows stop being
 comparable — and nothing errors.
 
-Capture from the current Go tree, into `testdata/golden/`:
+Capture from the current Go tree, into `testdata/golden/`  — *historical: three of these five were retired on 2026-09-15, see [ADR 0003](../adr/0003-retire-the-parity-goldens.md)*:
 
 - **Summary text** for every stored game — `summary.ExtractSummaryData` + `GenerateSummary`
   (`internal/summary/generator.go:39,144`). The summary text *is* the embedded text, so divergence
@@ -543,22 +543,34 @@ what makes that safe.
 
 - **The phase boundary (readiness [Q8](../opensource-readiness/02-open-questions.md)) — DONE
   2026-09-14.** It was a bug: the loop index is a ply and the constants are full moves, so both
-  boundaries were halved. Taken *ahead* of the capture tool below, because the goldens that tool would
-  verify against are themselves stale — the replacement verification is corpus-free tests in
+  boundaries were halved. Taken *ahead* of the capture tool below — now dropped entirely — because the
+  goldens that tool would verify against were themselves stale — the replacement verification is corpus-free tests in
   `tests/test_summary.py`, each checked against the old code to confirm it fails there. Stored summaries
   need the regeneration pass plus `zeitnot data reembed`; a fresh clone does not.
 
-- **Regenerating the goldens as a Python-native harness.** **Now unblocked and now blocking:** `legacy/`
-  was deleted on 2026-08-31, so the Go capture tool is gone and *nothing* can reproduce
-  `testdata/golden/`. Until a small Python capture tool exists, every golden is frozen — which is fine
-  while behavior is frozen, but it gates the two Preserved Defect fixes below, since both change Game
-  Summary text and therefore need a recapture. Build it before you take those on, and require it to
-  reproduce the existing files byte-for-byte first. See `testdata/golden/MANIFEST.md`.
+- ~~**Regenerating the goldens as a Python-native harness.**~~ **Dropped 2026-09-15.** This item said
+  the capture tool gated both Preserved Defect fixes, because both change Game Summary text and would
+  therefore need a recapture. The corpus-derived goldens were retired instead
+  ([ADR 0003](../adr/0003-retire-the-parity-goldens.md)): their remaining value was cross-language, Go
+  was gone, and the corpus they described had grown from 74 games to 195 and was no longer a superset of
+  the capture. There is nothing to recapture and nothing gated on it.
+
+  What replaced each of them is in the ADR's table. The two worth naming here: the whole assembled
+  prompt is pinned byte-for-byte in `tests/test_prompt_snapshot.py` against committed synthetic
+  fixtures, and the Go capture's re-derivation check — every stored summary regenerated from stored
+  `games` and `moves` and compared against `summary_text`, 74 of 74 at the capture commit — is
+  `tests/test_summary_corpus.py`, which needs the database and no golden.
+
+- **The Game Summary regeneration pass.** The real blocker in front of the Preserved Defects, and the
+  one this item was standing in for. Changing summary text makes every stored vector stale against its
+  own source, and no command repairs that: `zeitnot data reembed` rebuilds vectors from the stored text,
+  and `zeitnot data analyze` skips games it has already seen. It needs only `games` and `moves`, both
+  stored, and no Stockfish.
 
 - **[Readiness P0-8](../opensource-readiness/01-roadmap.md).** Deferred to *after* cutover under the
   plan's own rule — a change to the Assembled Prompt lands before the capture or after the cutover,
-  never in between — and it is now the largest outstanding correctness-and-disclosure item. It is also
-  why two of the five goldens are gitignored.
+  never in between — and it is now the largest outstanding correctness-and-disclosure item. It was also
+  why two of the five goldens were gitignored, which is a large part of why they are now retired.
 - **`ANALYSIS_DEPTH` as configuration**, **`NumSimilar`/`DetailLimit` token budgeting**, and the
   **unused Chess.com accuracy data** — same reasoning.
 - **Voyage adapter**, **tool calling**, **parameterized `vector(N)`** — unchanged from

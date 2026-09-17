@@ -4,6 +4,11 @@ The corpus-backed tests run against the *live* database, deliberately. Phase 2
 of the rewrite plan verifies the database layer "against the live corpus, not
 fixtures", because a float-conversion bug in the vector path is exactly the kind
 of defect a fixture would reproduce faithfully and wrongly.
+
+Nothing here reads a gitignored file any more. The corpus-derived goldens were
+retired in [ADR 0003](../docs/adr/0003-retire-the-parity-goldens.md); what is
+left in `testdata/golden/` is committed, so a fixture that skips on a missing
+file no longer has anything to skip for.
 """
 
 from __future__ import annotations
@@ -11,38 +16,24 @@ from __future__ import annotations
 import json
 import os
 import pathlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
+
+if TYPE_CHECKING:  # pragma: no cover - the DB import is deferred to the fixture
+    from zeitnot.db import DB
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 GOLDEN_DIR = REPO_ROOT / "testdata" / "golden"
 
 
-_MISSING_GOLDEN = (
-    "corpus goldens are gitignored and are not present; "
-    "see testdata/golden/MANIFEST.md for what it takes to recapture them"
-)
-
-
-def require_golden(path: pathlib.Path) -> pathlib.Path:
-    """Skip, rather than error, when a gitignored golden is absent.
-
-    Only four goldens are tracked; analysis.json, summaries.json and prompts/
-    are not, and the capture tool that made them is gone. A `golden`-marked
-    test therefore has to treat a missing file as "cannot check this here",
-    which is what the marker already promises. Reading one unguarded turns a
-    fresh clone into a collection error instead — and the `not corpus` subset
-    CI runs contains such a test, so the guard belongs on the read itself
-    rather than on each caller that happens to remember it.
-    """
-    if not path.exists():
-        pytest.skip(_MISSING_GOLDEN)
-    return path
-
-
 def load_golden(name: str) -> Any:
-    return json.loads(require_golden(GOLDEN_DIR / name).read_text())
+    """Read one of the committed expected-output tables.
+
+    All three are in the repository, so this reads rather than guards: a missing
+    file is a broken checkout and should surface as the error it is.
+    """
+    return json.loads((GOLDEN_DIR / name).read_text())
 
 
 @pytest.fixture(scope="session")
@@ -63,25 +54,33 @@ def db(database_url: str):  # type: ignore[no-untyped-def]
 
 
 @pytest.fixture(scope="session")
-def corpus_username() -> str:
-    """The username the goldens were captured for.
+def corpus_username(db: DB) -> str:
+    """Whose corpus this is, asked of the corpus.
 
-    Read from the prompt manifest rather than hardcoded, so a recapture for a
-    different player does not silently compare the wrong things.
+    This used to be read from the prompt golden's manifest, which pinned every
+    corpus test to one capture on one machine. A zeitnot database holds one
+    player's games — that is what `zeitnot data` ingests — so the username that
+    appears in every game is derivable, and deriving it is what lets these tests
+    run against anybody's corpus.
+
+    `ZEITNOT_CORPUS_USERNAME` overrides it, for a database that was pointed at
+    more than one player.
     """
-    manifest = GOLDEN_DIR / "prompts" / "manifest.json"
-    return str(json.loads(require_golden(manifest).read_text())["username"])
+    override = os.environ.get("ZEITNOT_CORPUS_USERNAME", "")
+    if override:
+        return override
 
+    with db.cursor() as cur:
+        cur.execute(
+            """SELECT username, COUNT(*) AS n FROM (
+                   SELECT white_username AS username FROM games
+                   UNION ALL
+                   SELECT black_username AS username FROM games
+               ) sides
+               GROUP BY username ORDER BY n DESC, username LIMIT 1"""
+        )
+        row = cur.fetchone()
 
-@pytest.fixture(scope="session")
-def prompt_manifest() -> dict[str, Any]:
-    manifest = GOLDEN_DIR / "prompts" / "manifest.json"
-    result: dict[str, Any] = json.loads(require_golden(manifest).read_text())
-    return result
-
-
-@pytest.fixture(scope="session")
-def summary_goldens() -> list[dict[str, Any]]:
-    path = GOLDEN_DIR / "summaries.json"
-    result: list[dict[str, Any]] = json.loads(require_golden(path).read_text())
-    return result
+    if row is None or not row[0]:
+        pytest.skip("the database has no games, so there is no corpus to test against")
+    return str(row[0])

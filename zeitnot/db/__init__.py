@@ -491,9 +491,16 @@ class DB:
     def get_moves_for_game(self, game_uuid: str) -> list[MoveRecord]:
         with self.cursor() as cur:
             cur.execute(
+                # move_number is the *full* move, so two rows share every value
+                # and ordering by it alone leaves the tie to the planner. It
+                # does get broken the wrong way in practice — observed on a real
+                # corpus returning Black's move 4 ahead of White's. Every caller
+                # reads this list as plies and takes the side from the index
+                # parity, so a swapped pair credits one player's mistakes to the
+                # other. The second key is what makes the order a ply order.
                 f"""SELECT {_MOVE_COLUMNS} FROM moves
                     WHERE game_uuid = %s
-                    ORDER BY move_number""",
+                    ORDER BY move_number, (side = 'black')""",
                 (game_uuid,),
             )
             return [_move_from_row(row) for row in cur.fetchall()]

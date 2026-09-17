@@ -22,13 +22,6 @@ docs/opensource-readiness/03-code-audit.md
 docs/feature-ideas.md
 docs/prompt-analysis.md
 
-# Corpus-derived goldens. Frozen at the Python cutover: the Go capture tool
-# they came from is gone, so these cannot be regenerated — see
-# testdata/golden/MANIFEST.md. They embed real opponent usernames (P0-8).
-testdata/golden/summaries.json
-testdata/golden/analysis.json
-testdata/golden/prompts/
-
 # Python
 .venv/
 __pycache__/

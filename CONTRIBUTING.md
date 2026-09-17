@@ -61,7 +61,12 @@ check rather than skipping silently.
 |---|---|---|
 | *(unmarked)* | nothing | never — these must always run |
 | `corpus` | `DATABASE_URL` pointing at a populated database | it is unset |
-| `golden` | locally captured corpus goldens | the file the test reads is absent |
+
+There used to be a third, `golden`, for tests reading a corpus capture that
+existed on one machine. Those files were retired in
+[ADR 0003](docs/adr/0003-retire-the-parity-goldens.md); every expected-output
+file in `testdata/golden/` is now committed, so no test can fail to find what it
+reads.
 
 ```bash
 pytest -m "not corpus"          # the portable subset — what a fresh clone runs
@@ -72,6 +77,15 @@ The corpus-backed tests run against the **live** database on purpose. A
 float-conversion bug in the vector path is exactly the kind of defect a fixture
 would reproduce faithfully and wrongly.
 
+**One `corpus` test fails on any corpus analyzed before 2026-09-14, and that is
+correct.** `tests/test_summary_corpus.py` checks that every stored summary still
+re-derives from the `games` and `moves` rows next to it. Three deliberate changes
+— termination normalization, the phase-boundary fix, and the draw fix — moved the
+text without a way to regenerate what is stored, so an older corpus genuinely has
+summaries their own vectors no longer describe. The failure names which summary
+lines moved. If the lines it names are those three, you have a stale corpus and
+not a regression; if it names something else, look at your change.
+
 ## Commits
 
 One phase or one concern per commit, with a message that says *why*. The commit
@@ -81,6 +95,13 @@ log is the design record for anything not written down in `docs/`.
 
 [`docs/codebase-invariants.md`](docs/codebase-invariants.md) covers the
 properties that are easy to break with a change that looks like a cleanup: the
-sorted-iteration rule the assembled prompt depends on, why the goldens are
-frozen and have no capture tool, and the one preserved defect still in
-`summary.py`.
+sorted-iteration rule the assembled prompt depends on, what the committed
+expected-output tables are for and how to regenerate the prompt snapshots
+honestly, and the one preserved defect still in `summary.py`.
+
+A change to the assembled prompt turns `tests/test_prompt_snapshot.py` red with
+a diff. Read it, decide whether it is what you meant, and if it is, regenerate
+with `ZEITNOT_UPDATE_PROMPT_SNAPSHOTS=1 pytest tests/test_prompt_snapshot.py`
+and commit the snapshots **in the same change**. The point of the file being
+committed is that your reviewer sees the prompt move next to the code that moved
+it.

@@ -126,9 +126,16 @@ specification question, and no amount of reading the code answers it.
 
 **Recommendation:** answer it **together with the Preserved Defects**, not separately. All three change
 Game Summary text, all three require the same regeneration pass, and doing them as one change means
-paying that cost once. Sequence it after the Python golden capture tool exists — otherwise there is no way
-to verify the new output against anything. If it is a bug, the CHANGELOG (P4-2) entry is the same
-"re-embedding required" note the other two need.
+paying that cost once. If it is a bug, the CHANGELOG (P4-2) entry is the same "re-embedding required"
+note the other two need.
+
+**Amended 2026-09-15.** This used to say "sequence it after the Python golden capture tool exists —
+otherwise there is no way to verify the new output against anything". That tool was never built and is
+now never going to be: the goldens it would have verified against were retired
+([ADR 0003](../adr/0003-retire-the-parity-goldens.md)). The verification that was actually wanted needs no
+capture at all — `tests/test_summary.py` pins the behavior live, and
+`tests/test_summary_corpus.py` says whether the stored corpus still agrees with the tree. The real
+sequencing constraint was always the regeneration pass, not the capture tool.
 
 ---
 
@@ -161,10 +168,12 @@ Measured on a 195-game corpus, before and after:
 Assembled Prompt once, through the retrieved Game Summary in `_write_game_context`.
 
 **The sequencing constraint was not binding.** The recommendation above put this
-behind the Python golden capture tool. That tool still does not exist, but the
-goldens it would verify against are already stale wholesale — `prompts/` since
+behind the Python golden capture tool. That tool never existed, and the goldens
+it would have verified against were already stale wholesale — `prompts/` since
 the 2026-09-14 prompt change, `summaries.json` for drawn games since
-2026-08-31 — so there was nothing left for them to verify. The replacement is
+2026-08-31 — so there was nothing left for them to verify. They were retired
+outright on 2026-09-15 ([ADR 0003](../adr/0003-retire-the-parity-goldens.md)),
+with this answer as the central exhibit. The replacement is
 coverage that needs no corpus at all: `tests/test_summary.py` now pins both
 boundaries from both sides and for both colours, and each new assertion was
 checked against the old code to confirm it fails there. **The absence of exactly
@@ -217,7 +226,7 @@ one of the two places the port genuinely deleted code rather than translating it
 general-purpose UCI layer under it to promote.
 
 The recommendation's substance was achieved anyway, by a different route: the analyzer *is* testable now
-(`tests/test_parity_engine.py`), which was the part worth doing regardless of publication.
+(`tests/test_engine.py`), which was the part worth doing regardless of publication.
 
 ### Q5 · Should the `gofmt` sweep use `.git-blame-ignore-revs`? — **Moot**
 
