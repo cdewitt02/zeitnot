@@ -399,6 +399,38 @@ class DB:
             row = cur.fetchone()
         return bool(row and row[0])
 
+    def canonical_username(self, typed: str) -> str | None:
+        """The corpus's own spelling of a player name, matched case-insensitively.
+
+        The read commands never see an archive payload, so this is where they
+        resolve what `zeitnot.models.canonical_username` resolves from one. The
+        stored spelling is authoritative for both: `white_username` and
+        `black_username` are written straight from the Chess.com JSON, so a
+        corpus ingested under a mistyped case still holds the registered
+        capitalization on every row — it is only the comparison that was ever
+        wrong.
+
+        This is the one predicate in the module that wraps an indexed column in
+        `LOWER()`, and so the one that cannot use `idx_games_white_username`. It
+        runs **once per invocation**, before any query the user waits on, which
+        is what buys every other predicate the right to stay an exact match.
+
+        `None` when no game names the player at all — the case that used to
+        present as `Stats updated: 0 total games` with nothing to explain it.
+        """
+        with self.cursor() as cur:
+            cur.execute(
+                """SELECT CASE WHEN LOWER(white_username) = LOWER(%(u)s)
+                                THEN white_username ELSE black_username END
+                   FROM games
+                   WHERE LOWER(white_username) = LOWER(%(u)s)
+                      OR LOWER(black_username) = LOWER(%(u)s)
+                   LIMIT 1""",
+                {"u": typed.strip()},
+            )
+            row = cur.fetchone()
+        return str(row[0]) if row else None
+
     def get_games_by_eco(self, eco_prefix: str, limit: int) -> list[GameRecord]:
         with self.cursor() as cur:
             cur.execute(

@@ -21,7 +21,7 @@ from zeitnot.chat.service import Config as ChatConfig
 from zeitnot.chat.service import Service
 from zeitnot.db import DB, DBConnectionError, IndexMeta
 from zeitnot.llm.base import Embedder, embed_one
-from zeitnot.models import Game, YearMonth
+from zeitnot.models import Game, YearMonth, canonical_username
 
 _HELP = "A chess coach that answers questions about your own games."
 
@@ -159,6 +159,40 @@ def doctor() -> None:
     raise typer.Exit(report.exit_code)
 
 
+def _corpus_username(database: DB, typed: str) -> str:
+    """Resolve a typed name to the corpus's spelling, or fail naming the remedy.
+
+    For the two commands that only read. `analyze` resolves against the archive
+    it just fetched instead, which is authoritative where this is merely
+    consistent with it.
+    """
+    resolved = database.canonical_username(typed)
+    if resolved is None:
+        _fail(
+            f'no games in this corpus for "{typed}".\n'
+            "  Usernames are matched the way Chess.com matches them, so the case you "
+            "typed is not the problem.\n"
+            f"  Ingest a month first: zeitnot data analyze {typed} <year> <month>"
+        )
+        # `_fail` has already exited. It is annotated `-> None` rather than
+        # `NoReturn` because every other call site pairs it with a `return`, and
+        # `warn_unreachable` would then reject all of them.
+        raise typer.Exit(1)
+    _report_spelling(typed, resolved)
+    return resolved
+
+
+def _report_spelling(typed: str, resolved: str) -> None:
+    """Say so when the spelling in use is not the one that was typed.
+
+    Silence here would be its own small version of the bug: the run is correct,
+    but the name in the banner and in every prompt is not the one the user
+    wrote, and nothing would account for the difference.
+    """
+    if typed != resolved:
+        print(f'Using "{resolved}", the spelling Chess.com records for "{typed}".')
+
+
 # ---------- zeitnot data ----------
 
 
@@ -193,6 +227,24 @@ def analyze(
         _fail(str(err))
         return
     print(f"Fetched {len(games)} games from Chess.com")
+
+    # Chess.com's path is case-insensitive, so the fetch above succeeds for any
+    # spelling; its payload states the registered one on every game. Resolve
+    # here, once, and every comparison after this point — the colour decision in
+    # `extract_summary_data` and every `white_username = %s` in SQL — is an
+    # exact match against the same string the rows are written with.
+    if games:
+        resolved = canonical_username(username, games)
+        if resolved is None:
+            _fail(
+                f'Chess.com returned {len(games)} games for "{username}" and none of '
+                "them list that player.\n"
+                "  This cannot happen against the real API, which only ever returns "
+                "that player's own archive."
+            )
+            return
+        _report_spelling(username, resolved)
+        username = resolved
 
     with _open_db() as database:
         database.migrate()
@@ -234,6 +286,7 @@ def refresh_stats(username: Annotated[str, typer.Argument(help="Chess.com userna
     with _open_db() as database:
         database.migrate()
 
+        username = _corpus_username(database, username)
         print(f"Refreshing stats for {username}...")
         start = time.monotonic()
         stats = database.refresh_player_stats(username)
@@ -354,6 +407,10 @@ def chat(
                 "  `zeitnot doctor` reports which database is being used."
             )
             return
+
+        # After the corpus check and before the banner, so the name the banner
+        # prints and the name every filter and prompt carries are the same one.
+        username = _corpus_username(database, username)
 
         try:
             model = cfg.new_chat_model()

@@ -30,6 +30,20 @@ A few properties are easy to break with a change that looks like a cleanup:
   `MIN_GAMES_FOR_COMPARISON` a bucket keeps its numbers and loses its comparison
   string. A one-game bucket rendered as "100.0% win rate (45.1% ABOVE overall)"
   is true and was read as a finding by every model tried.
+- **A username is resolved once, at the command boundary, and every comparison
+  after that is exact.** Chess.com's URL path is case-insensitive while its JSON
+  carries the registered capitalization, so the name a user types and the name
+  on the rows are routinely different strings. `zeitnot data analyze` resolves
+  against the archive it just fetched (`canonical_username` in
+  `zeitnot/models/game.py`); `refresh-stats` and `chat` resolve against the
+  corpus (`DB.canonical_username`), which holds the same spelling because
+  `white_username` is written straight from the payload. Everything downstream —
+  the colour decision in `summary.py`, every `white_username = %s` in
+  `zeitnot/db/` and `zeitnot/search/filters.py` — then stays an exact match, and
+  the `games(white_username)` index stays usable. Do not make those predicates
+  case-insensitive one at a time; that is thirty chances to miss one, and a
+  missed one is silent. `tests/test_username.py` and
+  `tests/test_cli_username.py` assert both halves without a database.
 - **Every dict that reaches the assembled prompt is iterated sorted.** The
   prompt must be reproducible across runs;
   [`multi-provider/03-eval-plan.md`](multi-provider/03-eval-plan.md) depends on

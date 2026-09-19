@@ -6,7 +6,13 @@ from zeitnot.models.analysis import (
     PhaseStats,
     YearMonth,
 )
-from zeitnot.models.game import Game, Player, normalize_termination
+from zeitnot.models.game import (
+    Game,
+    Player,
+    canonical_username,
+    normalize_termination,
+    same_username,
+)
 from zeitnot.models.player_stats import (
     ColorStats,
     OpeningStats,
@@ -30,6 +36,8 @@ __all__ = [
     "RatingBandStats",
     "TimeClassStats",
     "YearMonth",
+    "canonical_username",
     "normalize_termination",
     "rating_band",
+    "same_username",
 ]

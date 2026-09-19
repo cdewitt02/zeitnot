@@ -20,6 +20,7 @@ from zeitnot.models import (
     MoveAnalysis,
     PhaseStats,
     normalize_termination,
+    same_username,
 )
 from zeitnot.models.game import is_normalized_termination
 
@@ -53,7 +54,14 @@ def _player_eval(move: MoveAnalysis, player_color: str) -> int:
 def extract_summary_data(
     game: Game, moves: Sequence[MoveAnalysis], username: str
 ) -> GameSummaryData:
-    player_color = "white" if username == game.white.username else "black"
+    # Case-insensitively, because Chess.com's archive carries the registered
+    # capitalization and the caller may have typed any other. `analyze` resolves
+    # the name against the payload before it gets here, so this is normally an
+    # exact match anyway — but this comparison decides the side of the board
+    # every other field is derived from, and a summary generated from the wrong
+    # side is embedded before anything can notice. It does not get to depend on
+    # a caller having done the right thing.
+    player_color = "white" if same_username(username, game.white.username) else "black"
 
     winner = game.game_result()
     if winner == player_color:

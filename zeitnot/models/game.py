@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -186,3 +187,49 @@ def is_normalized_termination(value: str) -> bool:
     not leak has to ask first; see `zeitnot.chat.router`.
     """
     return value.strip().lower().startswith(_NORMALIZED_PREFIXES)
+
+
+# Chess.com's URL path is case-insensitive — /pub/player/HIKARU and
+# /pub/player/hikaru are the same archive — but the JSON it returns carries the
+# player's *registered* capitalization on every game. Comparing what the user
+# typed against that payload with `==` therefore fails for every spelling but
+# one, and it fails in the worst possible way: not with an error, but with the
+# player never being found to be White. Colour, result, phase statistics,
+# pattern verdict and termination are all derived from that one comparison, so
+# an archive fetched under the wrong case is summarized entirely from the wrong
+# side of the board and embedded that way.
+#
+# `lower()` rather than `casefold()` on purpose: the same comparison is made in
+# SQL by `LOWER()`, and the two have to agree on every input. Chess.com
+# usernames are ASCII letters, digits, underscore and hyphen, where the two
+# functions are identical anyway.
+
+
+def same_username(a: str, b: str) -> bool:
+    """Whether two spellings name the same Chess.com account.
+
+    Matching Chess.com's own semantics rather than being lenient to input: the
+    API treats these as one account, so anything that treats them as two is
+    describing a player who does not exist.
+    """
+    return a.strip().lower() == b.strip().lower()
+
+
+def canonical_username(typed: str, games: Sequence[Game]) -> str | None:
+    """The registered spelling of `typed`, read off an archive payload.
+
+    The archive is the authority on how a name is spelled, and it states it on
+    every game. Resolving once against it lets every comparison downstream — in
+    Python and in SQL — stay an exact match, which is both faster (the
+    `games(white_username)` index stays usable) and easier to reason about than
+    a case-insensitive predicate repeated at thirty call sites.
+
+    `None` when no game in `games` names the player, which for a real archive
+    means there were no games at all.
+    """
+    for game in games:
+        if same_username(typed, game.white.username):
+            return game.white.username
+        if same_username(typed, game.black.username):
+            return game.black.username
+    return None
