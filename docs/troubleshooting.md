@@ -20,6 +20,22 @@ request, so nothing is wasted.
 Either the username is misspelled or that player has no games archived for that
 month. A 404 cannot tell those apart, which is why the message names both.
 
+**`Stats updated: 0 total games` after a run that analyzed games** *(fixed
+2026-09-19)*
+Username comparisons used to be exact while Chess.com's archive returns the
+registered capitalization, so `zeitnot data analyze Hikaru` fetched the right
+games and then matched none of them. Every summary was written from the opponent's
+side of the board and the aggregate came out empty. Any spelling works now.
+
+**A corpus ingested that way is not repaired by this fix.** The `games` rows were
+always correct — they are written from the payload — so
+`zeitnot data refresh-stats <username>` restores the aggregates. The stored
+`game_summaries.summary_text` is not: it describes the wrong player, and
+`zeitnot data reembed` only re-embeds that same wrong text. Until the
+regeneration pass exists ([#10](https://github.com/cdewitt02/zeitnot/issues/10)),
+the remedy is to delete those games and analyze the month again — `analyze` skips
+any game already stored, so re-running it alone changes nothing.
+
 **Ingestion is slow**
 For scale: one month — 195 games — takes about **85 seconds** at the default
 `NUM_WORKERS=4`, pinned to four cores. If you are far off that, `NUM_WORKERS` is

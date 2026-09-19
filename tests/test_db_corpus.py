@@ -15,6 +15,7 @@ else — no error, no failing insert.
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from typing import LiteralString
 
 import pytest
@@ -228,3 +229,56 @@ def test_player_stats_round_trip_matches_a_fresh_computation(db: DB, corpus_user
         assert entry.wins == other.wins
         assert entry.win_rate == pytest.approx(other.win_rate, rel=1e-6)
         assert entry.avg_cpl == pytest.approx(other.avg_cpl, rel=1e-6)
+
+
+# ---------- issue #15: the read commands resolve the spelling themselves ----------
+
+
+@pytest.mark.parametrize("case", [str.lower, str.upper, str.title])
+def test_any_spelling_resolves_to_the_stored_one(
+    db: DB, corpus_username: str, case: Callable[[str], str]
+) -> None:
+    """`refresh-stats` and `chat` never see an archive payload.
+
+    They resolve against the corpus instead, and the corpus holds the
+    registered spelling on every row because `white_username` is written
+    straight from the Chess.com JSON. So a name typed in any case has to come
+    back as the one the rows actually use — that string is what every exact
+    predicate downstream is then matched against.
+    """
+    assert db.canonical_username(case(corpus_username)) == corpus_username
+
+
+@pytest.mark.parametrize("case", [str.lower, str.upper, str.title])
+def test_stats_do_not_depend_on_how_the_name_was_typed(
+    db: DB, corpus_username: str, case: Callable[[str], str]
+) -> None:
+    """The user-visible half of the same claim.
+
+    Before the fix this returned a zero-game `PlayerStats` for every spelling
+    but one, and the run reported `Stats updated: 0 total games` with nothing
+    to explain it. Resolution happens at the command boundary, so this asserts
+    what the command computes *after* resolving, not that `compute_player_stats`
+    became case-insensitive — it did not, deliberately.
+    """
+    resolved = db.canonical_username(case(corpus_username))
+    assert resolved is not None
+
+    reference = db.compute_player_stats(corpus_username)
+    fresh = db.compute_player_stats(resolved)
+    assert fresh.total_games == reference.total_games
+    assert (fresh.wins, fresh.losses, fresh.draws) == (
+        reference.wins,
+        reference.losses,
+        reference.draws,
+    )
+    assert fresh.avg_cpl == pytest.approx(reference.avg_cpl, rel=1e-6)
+
+
+def test_a_name_no_game_uses_resolves_to_nothing(db: DB, corpus_username: str) -> None:
+    """The distinguishable failure the old code could not produce.
+
+    A name that matches nothing has to be separable from a name that matches
+    with the wrong case, or the command cannot tell the user which one happened.
+    """
+    assert db.canonical_username(corpus_username + "-not-a-real-account") is None
