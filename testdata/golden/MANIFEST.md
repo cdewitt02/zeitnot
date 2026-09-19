@@ -39,23 +39,37 @@ now that the goldens they were captured alongside are gone. They survive the
 retirement because they are committed, reviewable, and cheap to run in CI, not
 because anybody has re-derived their contents from a specification.
 
-**`parsing.json` is known to encode defects.** Four of the twelve frozen eval
-questions get a filter they should not: `"What's my average centipawn loss?"`
-records `result: loss`, so a question about average accuracy retrieves only lost
-games; `"...what's my win rate?"` records `result: win`; `"Show me games where I
-threw a winning position"` records `result: win` for a question about losses;
-and `"Am I better with white or black?"` records `color: white`, filtering a
-comparison to one side of it. These are Go's answers, asserted as correct by
-`tests/test_parsing.py`, which runs on every pull request. The defects are
-[#40](https://github.com/cdewitt02/zeitnot/issues/40) and splitting the table is
-[#41](https://github.com/cdewitt02/zeitnot/issues/41) — until those land, read a
-failure here as "the parser changed", never as "the parser broke".
+**`parsing.json` has now been read entry by entry**, which is what
+[#40](https://github.com/cdewitt02/zeitnot/issues/40) and
+[#41](https://github.com/cdewitt02/zeitnot/issues/41) asked for. Eight of its 37
+entries were rewritten by hand and the other 29 were confirmed as the feature
+working as designed (`'my games as black'` → `'my games'` + `color: black`). The
+four that were defects: `"What's my average centipawn loss?"` and
+`"...what's my win rate?"` recorded a filter for a word inside a *metric* name;
+`"Show me games where I threw a winning position"` recorded `result: win` for a
+question about losses; and `"Am I better with white or black?"` recorded
+`color: white`, filtering a comparison to one side of it. The other four dropped
+`phase: …` from `extracted_filters`, which announced a filter `build_where`
+never applies ([#18](https://github.com/cdewitt02/zeitnot/issues/18)). Those
+entries are no longer Go's answers, and `tests/test_parsing.py` asserts the
+three rules behind them directly, without reading the table.
+
+So a failure here is now readable the ordinary way: the entries this repository
+has reviewed are a specification, and the rest are still a Go capture that
+nobody has contradicted. What has *not* changed is that the table cannot be
+regenerated to clear a red test — see the rule below.
 
 `classification.json` and `eval_helpers.json` have no known problem of this
-kind, and `eval_helpers.json` is checked independently: `tests/test_engine.py`
-asserts every classification boundary by hand alongside reading the table, so a
-wrong value in the file would collide with an assertion that does not come from
-Go.
+kind. `classification.json` has had the same read-through: all 37 entries record
+what `classify_query` does, and one of them disagrees with the *intent* recorded
+elsewhere — `'Which time control is my best?'` classifies as `specific_games`,
+while [`03-eval-plan.md`](../../docs/multi-provider/03-eval-plan.md) §2 lists it
+as a Comparative question. `_COMPARATIVE_KEYWORDS` carries `best time control`,
+not the inverted phrasing. The table is right about the code; the code and the
+plan disagree, and no issue tracks it yet. `eval_helpers.json` is checked
+independently: `tests/test_engine.py` asserts every classification boundary by
+hand alongside reading the table, so a wrong value in the file would collide
+with an assertion that does not come from Go.
 
 ## The two rules that survive
 

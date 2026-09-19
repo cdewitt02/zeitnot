@@ -167,6 +167,31 @@ _BLUNDER_PATTERNS: list[tuple[re.Pattern[str], int | None, int | None]] = [
     (re.compile(r"(?i)\b(blunder|blunders|blundered)\b"), 1, None),
 ]
 
+# A result word names a filter only when it names the *outcome of a game*. These
+# are the phrases where it does not: it names a metric the question is asking
+# about ("centipawn loss", "win rate"), or it describes a position inside a game
+# ("threw a winning position"). The characters they cover are masked out before
+# the result table is scanned, so such a word neither sets a filter nor gets
+# stripped from the text handed to the embedder.
+#
+# This is the boundary the parser draws, and it is deliberately a phrase list
+# rather than a rule: "loss" is an outcome, "centipawn loss" is a number.
+_METRIC_PHRASES: list[re.Pattern[str]] = [
+    re.compile(r"(?i)\b(?:centipawn|cp)\s+loss(?:es)?\b"),
+    re.compile(
+        r"(?i)\b(?:win|loss|draw)\s*[-/]?\s*(?:rate|rates|percent|percentage|percentages|ratio)\b"
+    ),
+    re.compile(
+        r"(?i)\b(?:winning|losing|won|lost|drawn)\s+"
+        r"(?:position|positions|endgame|endgames|chances|advantage)\b"
+    ),
+]
+
+# Colours are a comparison, not a filter, when the question names both of them:
+# "Am I better with white or black?" is about the difference between the two.
+_WHITE_MENTION = re.compile(r"(?i)\bwhite\b")
+_BLACK_MENTION = re.compile(r"(?i)\bblack\b")
+
 _WHITESPACE = re.compile(r"\s+")
 
 
@@ -192,23 +217,43 @@ class QueryParser:
             extracted.append("opening: " + pattern.opening_name)
             remaining = _remove_keyword(remaining, longest)
 
-        for keyword in sorted(COLOR_KEYWORDS):
-            if keyword in lower:
-                filters.user_color = COLOR_KEYWORDS[keyword]
-                extracted.append("color: " + COLOR_KEYWORDS[keyword])
-                remaining = _remove_keyword(remaining, keyword)
+        names_both_colors = bool(_WHITE_MENTION.search(lower)) and bool(
+            _BLACK_MENTION.search(lower)
+        )
+        if not names_both_colors:
+            for keyword in sorted(COLOR_KEYWORDS):
+                if keyword in lower:
+                    filters.user_color = COLOR_KEYWORDS[keyword]
+                    extracted.append("color: " + COLOR_KEYWORDS[keyword])
+                    remaining = _remove_keyword(remaining, keyword)
+                    break
+
+        # The result table is scanned against a copy with the metric phrases
+        # blanked out, so "centipawn loss" and "win rate" are invisible to it.
+        masked = _mask_metric_phrases(lower)
+        for keyword in sorted(RESULT_KEYWORDS):
+            pattern_re = _word_pattern(keyword)
+            if pattern_re.search(masked):
+                filters.result = RESULT_KEYWORDS[keyword]
+                extracted.append("result: " + RESULT_KEYWORDS[keyword])
+                remaining = _strip_unprotected(remaining, pattern_re)
                 break
 
-        for table, attribute, label in (
-            (RESULT_KEYWORDS, "result", "result: "),
+        # `label is None` means "set the field, announce nothing". The phase
+        # filter is parsed and merged but `build_where` never applies it, so
+        # announcing it told the model the games in front of it were endgame
+        # games when nothing had selected for that — the small half of #18.
+        tables: tuple[tuple[dict[str, str], str, str | None], ...] = (
             (TIME_CLASS_KEYWORDS, "time_class", "time control: "),
-            (PHASE_KEYWORDS, "weak_phase", "phase: "),
-        ):
+            (PHASE_KEYWORDS, "weak_phase", None),
+        )
+        for table, attribute, label in tables:
             for keyword in sorted(table):
-                pattern_re = re.compile(r"(?i)\b" + re.escape(keyword) + r"\b")
+                pattern_re = _word_pattern(keyword)
                 if pattern_re.search(lower):
                     setattr(filters, attribute, table[keyword])
-                    extracted.append(label + table[keyword])
+                    if label is not None:
+                        extracted.append(label + table[keyword])
                     remaining = pattern_re.sub("", remaining)
                     break
 
@@ -243,9 +288,46 @@ class QueryParser:
         )
 
 
+def _word_pattern(keyword: str) -> re.Pattern[str]:
+    """A case-insensitive, word-bounded match for a literal keyword."""
+    return re.compile(r"(?i)\b" + re.escape(keyword) + r"\b")
+
+
 def _remove_keyword(query: str, keyword: str) -> str:
-    """Remove a keyword from the query, case-insensitively."""
-    return re.sub(re.escape(keyword), "", query, flags=re.IGNORECASE)
+    """Remove a keyword from the query, case-insensitively.
+
+    Word-bounded, like every other removal here. It used to be a bare substring
+    replacement, which is the same code doing a different thing: `"whitespace in
+    my games"` minus `white` came back as `"space in my games"`.
+    """
+    return _word_pattern(keyword).sub("", query)
+
+
+def _mask_metric_phrases(text: str) -> str:
+    """Blank out every metric phrase, preserving length and therefore offsets.
+
+    The filler is a non-word character, so no keyword can match across or inside
+    a masked span.
+    """
+    for phrase in _METRIC_PHRASES:
+        text = phrase.sub(lambda m: "#" * len(m.group(0)), text)
+    return text
+
+
+def _strip_unprotected(text: str, pattern: re.Pattern[str]) -> str:
+    """Remove matches of `pattern`, leaving those inside a metric phrase alone.
+
+    Masking is length-preserving, so a match found in the masked copy carries
+    offsets that address the real text.
+    """
+    masked = _mask_metric_phrases(text)
+    pieces: list[str] = []
+    cursor = 0
+    for match in pattern.finditer(masked):
+        pieces.append(text[cursor : match.start()])
+        cursor = match.end()
+    pieces.append(text[cursor:])
+    return "".join(pieces)
 
 
 def _clean_query(query: str) -> str:
