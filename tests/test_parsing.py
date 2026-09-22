@@ -13,15 +13,18 @@ same shape as the defect that survived a byte-for-byte port: every check on the
 phase buckets ran against a golden captured from the implementation that had the
 bug.
 
-**Read a failure here as "the parser changed", not "the parser broke."** Both
-tables are Go captures: the questions were chosen by hand, but the expected
-values are what the Go implementation returned. `parsing.json` is known to
-record wrong answers — `"What's my average centipawn loss?"` carries a
-`result: loss` filter, so a question about average accuracy retrieves only lost
-games — and this module asserts them, because pinning the behavior is still
-worth more than not pinning it. The defects are tracked as issue #40 and the
-table split as #41; `testdata/golden/MANIFEST.md` lists what is known to be
-wrong.
+**Both tables started as Go captures**: the questions were chosen by hand, but
+the expected values were what the Go implementation returned, which is why this
+module used to say that a failure here meant "the parser changed", not "the
+parser broke". `parsing.json` was read entry by entry under #40/#41 — eight
+entries are now hand-written expectations, the other 29 were confirmed as the
+feature working as designed — so that caveat is retired and a failure reads the
+ordinary way.
+
+The three rules behind the rewritten entries are asserted at the bottom of this
+file *without* reading the table, which is the part the golden could never do
+for itself: it agreed with the code because both came from the same
+implementation.
 """
 
 from __future__ import annotations
@@ -99,3 +102,97 @@ def test_parsing_is_stable_across_repeated_calls() -> None:
             assert again.extracted_filters == first.extracted_filters, question
             assert again.filters.result == first.filters.result, question
             assert again.filters.eco_prefix == first.filters.eco_prefix, question
+
+
+def test_a_metric_name_does_not_apply_a_result_filter() -> None:
+    """The defect in #40, asserted from the specification rather than the table.
+
+    A result word is a filter only when it names the outcome of a game. Inside
+    a metric name it names a number, and inside "winning position" it describes
+    a position in a game that was very likely lost. Both used to set a filter
+    *and* get cut out of the text handed to the embedder, so the question about
+    average centipawn loss reached retrieval as "average centipawn", restricted
+    to games the player lost.
+    """
+    parser = QueryParser()
+    for question in (
+        "What's my average centipawn loss?",
+        "How many games have I played and what's my win rate?",
+        "Show me games where I threw a winning position",
+        "What's my draw rate in the Sicilian?",
+        "my cp loss by phase",
+    ):
+        result = parser.parse(question, "u")
+        assert result.filters.result is None, question
+        assert "result: win" not in result.extracted_filters, question
+        assert "result: loss" not in result.extracted_filters, question
+        assert "result: draw" not in result.extracted_filters, question
+
+    # And the metric survives into the semantic query intact.
+    assert (
+        parser.parse("What's my average centipawn loss?", "u").semantic_query
+        == "What's my average centipawn loss"
+    )
+
+
+def test_an_outcome_word_outside_a_metric_name_still_filters() -> None:
+    """The guard is a phrase list, not a blanket exemption for the word."""
+    parser = QueryParser()
+    assert parser.parse("my losses", "u").filters.result == "loss"
+    assert parser.parse("games I won", "u").filters.result == "win"
+    assert parser.parse("show me draws", "u").filters.result == "draw"
+    # One protected occurrence and one free one in the same question: the free
+    # one filters, and only the free one is removed.
+    mixed = parser.parse("my win rate in games I won", "u")
+    assert mixed.filters.result == "win"
+    assert mixed.semantic_query == "my win rate in games I"
+
+
+def test_a_question_naming_both_colors_applies_no_color_filter() -> None:
+    """A comparison is not a restriction.
+
+    "Am I better with white or black?" matched `with white` first and stopped,
+    so a question about the difference between the two sides retrieved one of
+    them — and asked the embedder about "Am I better or black".
+    """
+    parser = QueryParser()
+    for question in (
+        "Am I better with white or black?",
+        "as white or as black",
+        "do I blunder more with the white pieces or the black pieces?",
+    ):
+        result = parser.parse(question, "u")
+        assert result.filters.user_color is None, question
+        assert not any(f.startswith("color: ") for f in result.extracted_filters), question
+
+    assert (
+        parser.parse("Am I better with white or black?", "u").semantic_query
+        == "Am I better with white or black"
+    )
+    # One colour named is still a filter.
+    assert parser.parse("my games as black", "u").filters.user_color == "black"
+
+
+def test_keyword_removal_is_word_bounded() -> None:
+    """`_remove_keyword` used to be a bare substring replacement, unlike the
+    result and time-control loops, which compiled `\\b…\\b`. Two code paths that
+    should agree now do."""
+    parser = QueryParser()
+    result = parser.parse("whitespace in my games", "u")
+    assert result.filters.user_color is None
+    assert result.semantic_query == "whitespace in my games"
+
+
+def test_the_phase_filter_is_parsed_but_not_announced() -> None:
+    """The small half of #18.
+
+    `build_where` never applies `weak_phase`, so listing it in
+    `extracted_filters` put "Note: The search was filtered by: [phase: endgame]"
+    in front of the model for a set of games nothing had selected for. The field
+    stays — `hybrid.py` merges it and something may yet apply it — the claim
+    goes.
+    """
+    parser = QueryParser()
+    result = parser.parse("show me my endgame losses", "u")
+    assert result.filters.weak_phase == "endgame"
+    assert result.extracted_filters == ["result: loss"]

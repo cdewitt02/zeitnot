@@ -1,11 +1,9 @@
 [
   {
     "question": "What's my average centipawn loss?",
-    "semantic_query": "What's my average centipawn",
-    "extracted_filters": [
-      "result: loss"
-    ],
-    "result": "loss",
+    "semantic_query": "What's my average centipawn loss",
+    "extracted_filters": [],
+    "result": null,
     "user_color": null,
     "time_class": null,
     "weak_phase": null,
@@ -21,11 +19,9 @@
   },
   {
     "question": "How many games have I played and what's my win rate?",
-    "semantic_query": "How many games have I played and what's my rate",
-    "extracted_filters": [
-      "result: win"
-    ],
-    "result": "win",
+    "semantic_query": "How many games have I played and what's my win rate",
+    "extracted_filters": [],
+    "result": null,
     "user_color": null,
     "time_class": null,
     "weak_phase": null,
@@ -41,12 +37,10 @@
   },
   {
     "question": "Am I better with white or black?",
-    "semantic_query": "Am I better or black",
-    "extracted_filters": [
-      "color: white"
-    ],
+    "semantic_query": "Am I better with white or black",
+    "extracted_filters": [],
     "result": null,
-    "user_color": "white",
+    "user_color": null,
     "time_class": null,
     "weak_phase": null,
     "eco_prefix": null,
@@ -79,11 +73,9 @@
   },
   {
     "question": "Show me games where I threw a winning position",
-    "semantic_query": "Show me games where I threw a position",
-    "extracted_filters": [
-      "result: win"
-    ],
-    "result": "win",
+    "semantic_query": "Show me games where I threw a winning position",
+    "extracted_filters": [],
+    "result": null,
     "user_color": null,
     "time_class": null,
     "weak_phase": null,
@@ -100,9 +92,7 @@
   {
     "question": "What openings do I lose with most often?",
     "semantic_query": "What do I lose with most often",
-    "extracted_filters": [
-      "phase: opening"
-    ],
+    "extracted_filters": [],
     "result": null,
     "user_color": null,
     "time_class": null,
@@ -450,9 +440,7 @@
   {
     "question": "endgame problems",
     "semantic_query": "problems",
-    "extracted_filters": [
-      "phase: endgame"
-    ],
+    "extracted_filters": [],
     "result": null,
     "user_color": null,
     "time_class": null,
@@ -470,9 +458,7 @@
   {
     "question": "my middlegame tactics",
     "semantic_query": "my tactics",
-    "extracted_filters": [
-      "phase: middlegame"
-    ],
+    "extracted_filters": [],
     "result": null,
     "user_color": null,
     "time_class": null,
@@ -613,8 +599,7 @@
     "question": "endgame losses",
     "semantic_query": "",
     "extracted_filters": [
-      "result: loss",
-      "phase: endgame"
+      "result: loss"
     ],
     "result": "loss",
     "user_color": null,
