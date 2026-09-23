@@ -545,7 +545,7 @@ class QueryRouter:
     def _write_instructions(self, sb: StringIO, query_type: QueryType) -> None:
         sb.write("INSTRUCTIONS:\n")
         sb.write("- Interpret all questions in the context of chess and the player's games\n")
-        
+
         sb.write("\nFORMATTING:\n")
         sb.write("- Reply in GitHub-flavored markdown\n")
         sb.write("- Use ## for section headings, - for bullets, and **bold** for emphasis\n")
