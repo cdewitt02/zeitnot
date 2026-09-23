@@ -38,6 +38,13 @@ Game 2: won as white in bullet. Played Scandinavian Defense. Opponent rating: 10
 
 INSTRUCTIONS:
 - Interpret all questions in the context of chess and the player's games
+
+FORMATTING:
+- Reply in GitHub-flavored markdown
+- Use ## for section headings, - for bullets, and **bold** for emphasis
+- Put chess moves and openings in `backticks`, and multi-move lines in fenced code blocks
+- Use a markdown table when comparing three or more things across the same fields
+- Do not use HTML, images, or heading levels above ###
 - Analyze PLAYER OVERVIEW to identify weaknesses and areas for improvement
 - Use RELEVANT GAMES as concrete examples of the issues
 - When citing specific games, identify them by label, e.g. Game 3

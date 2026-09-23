@@ -546,6 +546,18 @@ class QueryRouter:
         sb.write("INSTRUCTIONS:\n")
         sb.write("- Interpret all questions in the context of chess and the player's games\n")
 
+        sb.write("\nFORMATTING:\n")
+        sb.write("- Reply in GitHub-flavored markdown\n")
+        sb.write("- Use ## for section headings, - for bullets, and **bold** for emphasis\n")
+        sb.write(
+            "- Put chess moves and openings in `backticks`, and multi-move lines in "
+            "fenced code blocks\n"
+        )
+        sb.write(
+            "- Use a markdown table when comparing three or more things across the same fields\n"
+        )
+        sb.write("- Do not use HTML, images, or heading levels above ###\n")
+
         if query_type is QueryType.AGGREGATE:
             sb.write("- This is a STATISTICS question - use the PLAYER OVERVIEW data primarily\n")
             sb.write("- Provide specific numbers and percentages from the stats\n")
