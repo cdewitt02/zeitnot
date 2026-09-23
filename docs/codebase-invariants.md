@@ -50,6 +50,23 @@ A few properties are easy to break with a change that looks like a cleanup:
   it, and so does `tests/test_prompt_snapshot.py`. `tests/test_parsing.py` pins
   the parser half, and it runs in CI — which it did not until ADR 0003, because
   a module-level marker had swept it into the corpus subset.
+- **There is one table of opening names, and both consumers derive from it.**
+  `zeitnot/openings.py`. The classifier decides which openings a question
+  *names* and the parser decides which games it *retrieves*; each used to hold
+  its own list, and they drifted until they disagreed on 37 spellings and
+  neither carried the Danish Gambit. A question comparing it to the Caro-Kann
+  then produced a prompt with Caro-Kann stats, no Danish stats, and nothing
+  saying half the comparison was missing, which llama3.2 filled in with invented
+  numbers — different ones on each run. `tests/test_openings.py` asserts the two
+  consumers see the same spellings. Adding an opening to one list only is how
+  this comes back ([#41](https://github.com/cdewitt02/zeitnot/issues/41)).
+- **An opening name is compared against Chess.com's spelling, never the
+  player's.** `games.eco_name` holds a URL slug with its hyphens turned into
+  spaces and its apostrophes dropped — `Caro Kann Defense Advance Bayonet
+  Attack` — so `zeitnot/openings.py::normalize` stands between any name and any
+  stored text. Matching `Caro-Kann` literally asks for a hyphen no stored name
+  has: the stats block reported zero games across every Caro-Kann in the corpus,
+  and the retrieval filter selected none of them.
 - **Adapters never send a parameter the caller did not set** — a stray
   temperature default would change answer distributions with prompt parity fully
   intact. The conformance suite asserts this.

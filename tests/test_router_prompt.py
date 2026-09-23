@@ -312,3 +312,76 @@ def test_missing_mentioned_opening_is_explicit_in_prompt() -> None:
 
     assert "OPENING-SPECIFIC STATS" in prompt
     assert "No analyzed games in: Catalan" in prompt
+
+
+def test_one_missing_opening_is_explicit_even_when_another_matched() -> None:
+    """The bug this section exists for.
+
+    "Compare my Danish Gambit games with my Caro Kann" names two openings and
+    the player has games in one. Reporting the miss only when *nothing* matched
+    sent the model Caro-Kann stats with no mention that the Danish Gambit was
+    absent, and asked for a comparison it invented the other half — 24 games at
+    62.5% on one run, 11 games at 72.7% on the next.
+    """
+    prompt = make_router().build_prompt(
+        QueryContext(
+            query_type=QueryType.COMPARATIVE,
+            player_stats=make_stats(),
+            mentioned_openings=["danish", "caro kann"],
+        ),
+        detail_limit=DETAIL_LIMIT,
+    )
+
+    assert "Caro Kann Defense (B12):" in prompt
+    assert "No analyzed games in: Danish Gambit" in prompt
+
+
+def test_a_hyphenated_opening_finds_the_players_games() -> None:
+    """Chess.com stores "Caro Kann Defense ...", so matching the standard
+    spelling literally reported zero games across every one of them."""
+    prompt = make_router().build_prompt(
+        QueryContext(
+            query_type=QueryType.SPECIFIC_GAMES,
+            player_stats=make_stats(),
+            mentioned_openings=["caro-kann"],
+        ),
+        detail_limit=DETAIL_LIMIT,
+    )
+
+    assert "Caro Kann Defense (B12):" in prompt
+    assert "No analyzed games in" not in prompt
+
+
+def test_two_mentions_sharing_an_opening_report_it_once() -> None:
+    """A doubled stats block is a row the model can add up twice."""
+    prompt = make_router().build_prompt(
+        QueryContext(
+            query_type=QueryType.SPECIFIC_GAMES,
+            player_stats=make_stats(),
+            mentioned_openings=["caro kann", "caro-kann"],
+        ),
+        detail_limit=DETAIL_LIMIT,
+    )
+
+    assert prompt.count("Caro Kann Defense (B12):") == 1
+
+
+def test_a_named_opening_with_too_few_games_says_so() -> None:
+    """The invariant the rest of the file already keeps.
+
+    "Most played openings" marks a two-game bucket; this block did not, and it is
+    the one a comparison question reads. On the maintainer's corpus the Danish
+    Gambit is exactly one game, so the question that started this would otherwise
+    now be answered from a single game at 100%.
+    """
+    prompt = make_router().build_prompt(
+        QueryContext(
+            query_type=QueryType.COMPARATIVE,
+            player_stats=make_stats(),
+            mentioned_openings=["italian"],
+        ),
+        detail_limit=DETAIL_LIMIT,
+    )
+
+    assert "Italian Game (C50):" in prompt
+    assert "- Only 2 games - too few to compare against another opening" in prompt

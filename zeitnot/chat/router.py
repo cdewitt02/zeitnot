@@ -45,6 +45,7 @@ from zeitnot.db import DB
 from zeitnot.db.records import SimilarGameResult
 from zeitnot.models import ColorStats, OpeningStats, PlayerStats, RatingBandStats, TimeClassStats
 from zeitnot.models.game import is_normalized_termination
+from zeitnot.openings import display_name, normalize
 from zeitnot.search.hybrid import HybridSearcher, SearchQuery
 from zeitnot.summary import strip_unnormalized_termination
 
@@ -655,17 +656,37 @@ class QueryRouter:
         if not stats.stats_by_opening:
             return
 
+        # Every mention is accounted for, separately. One question can name two
+        # openings and have games in only one of them, and reporting the miss
+        # only when *nothing* matched is what let a Danish-Gambit-versus-
+        # Caro-Kann comparison reach the model as Caro-Kann stats alone, with
+        # nothing saying the other half was absent. Asked to compare, it filled
+        # the gap in — with different invented numbers on each run.
         matches: list[tuple[str, OpeningStats]] = []
+        missing: list[str] = []
+        seen: set[str] = set()
         for opening in mentioned:
-            opening_lower = opening.lower()
-            for eco in sorted(stats.stats_by_opening):
-                o = stats.stats_by_opening[eco]
-                if eco.lower() == opening_lower or opening_lower in o.opening_name.lower():
-                    matches.append((eco, o))
+            needle = normalize(opening)
+            hits = [
+                (eco, stats.stats_by_opening[eco])
+                for eco in sorted(stats.stats_by_opening)
+                # Both sides normalized: Chess.com stores "Caro Kann Defense
+                # Exchange Variation", so a bare `in` against the standard
+                # spelling "Caro-Kann" found nothing and called it zero games.
+                if eco.lower() == needle
+                or needle in normalize(stats.stats_by_opening[eco].opening_name)
+            ]
+            if not hits:
+                missing.append(display_name(opening))
+                continue
+            # Two mentions can share an ECO — "sicilian" and "najdorf" both
+            # match B90 — and a doubled block is a row the model can count twice.
+            matches.extend((eco, o) for eco, o in hits if eco not in seen)
+            seen.update(eco for eco, _ in hits)
 
         sb.write("OPENING-SPECIFIC STATS (for openings mentioned in your question):\n")
-        if not matches:
-            sb.write(f"No analyzed games in: {', '.join(mentioned)}\n")
+        if not matches and missing:
+            sb.write(f"No analyzed games in: {', '.join(missing)}\n")
         for eco, matched_stats in matches:
             name = matched_stats.opening_name or eco
             sb.write(f"\n{name} ({eco}):\n")
@@ -676,5 +697,17 @@ class QueryRouter:
             )
             sb.write(f"  - Win rate: {matched_stats.win_rate:.1f}%\n")
             sb.write(f"  - Average CPL: {matched_stats.avg_cpl:.1f}\n")
+            # The small-sample rule, which every other opening list in this file
+            # already applies. This block is the one a comparison question reads
+            # most closely, and it was the one handing over "Games: 1, Win rate:
+            # 100.0%" with nothing to say a single game cannot carry it.
+            if matched_stats.games < MIN_GAMES_FOR_COMPARISON:
+                sb.write(
+                    f"  - Only {format_games(matched_stats.games)} "
+                    "- too few to compare against another opening\n"
+                )
+
+        if matches and missing:
+            sb.write(f"\nNo analyzed games in: {', '.join(missing)}\n")
 
         sb.write("\n")

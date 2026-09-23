@@ -6,6 +6,8 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, LiteralString
 
+from zeitnot.openings import normalize
+
 
 @dataclass(slots=True)
 class GameFilters:
@@ -105,7 +107,11 @@ class GameFilters:
             add("g.eco_code LIKE %s", self.eco_prefix + "%")
 
         if self.opening_name is not None:
-            add("LOWER(g.eco_name) LIKE %s", "%" + self.opening_name.lower() + "%")
+            # Normalized, because `eco_name` is a Chess.com URL slug with its
+            # hyphens turned into spaces and its apostrophes dropped
+            # (`Game.opening_name`). Matching "Caro-Kann" literally asks for a
+            # hyphen no stored name has, and retrieves nothing at all.
+            add("LOWER(g.eco_name) LIKE %s", "%" + normalize(self.opening_name) + "%")
 
         if self.min_blunders is not None or self.max_blunders is not None:
             blunder_expr: LiteralString = (
