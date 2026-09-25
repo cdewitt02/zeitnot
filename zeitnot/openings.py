@@ -59,6 +59,7 @@ def normalize(text: str) -> str:
     folded = _APOSTROPHE.sub("", text.lower().replace("-", " "))
     return " ".join(folded.split())
 
+
 _APOSTROPHE = re.compile(r"['\u2019]")
 
 OPENINGS: tuple[Opening, ...] = (
@@ -72,9 +73,13 @@ OPENINGS: tuple[Opening, ...] = (
     Opening("Frankenstein-Dracula", "C27", ("frankenstein", "dracula")),
     Opening("Vienna Gambit", "C29", ("vienna gambit",)),
     Opening("King's Gambit", "C3", ("kings gambit", "king's gambit")),
-    Opening("King's Gambit Declined", "C30", ("kgd", "kings gambit declined", "king's gambit declined")),
+    Opening(
+        "King's Gambit Declined", "C30", ("kgd", "kings gambit declined", "king's gambit declined")
+    ),
     Opening("Falkbeer", "C31", ("falkbeer",)),
-    Opening("King's Gambit Accepted", "C33", ("kga", "kings gambit accepted", "king's gambit accepted")),
+    Opening(
+        "King's Gambit Accepted", "C33", ("kga", "kings gambit accepted", "king's gambit accepted")
+    ),
     Opening("Muzio Gambit", "C37", ("muzio",)),
     Opening("Latvian Gambit", "C40", ("latvian",)),
     Opening("Elephant Gambit", "C40", ("elephant gambit",)),
@@ -120,7 +125,9 @@ OPENINGS: tuple[Opening, ...] = (
     Opening("Caro-Kann", "B1", ("caro kann", "caro-kann")),
     Opening("Caro-Kann Two Knights", "B11", ("caro kann two knights", "caro-kann two knights")),
     Opening("Caro-Kann Advance", "B12", ("caro kann advance", "caro-kann advance")),
-    Opening("Fantasy Variation", "B12", ("fantasy variation", "caro kann fantasy", "caro-kann fantasy")),
+    Opening(
+        "Fantasy Variation", "B12", ("fantasy variation", "caro kann fantasy", "caro-kann fantasy")
+    ),
     Opening("Panov-Botvinnik", "B13", ("panov", "panov-botvinnik", "panov botvinnik")),
     Opening("French", "C0", ("french", "french defense", "french defence")),
     Opening("French Exchange", "C01", ("french exchange",)),
@@ -136,7 +143,11 @@ OPENINGS: tuple[Opening, ...] = (
     Opening("Alapin", "B22", ("alapin",)),
     Opening("Grand Prix Attack", "B23", ("grand prix",)),
     Opening("Closed Sicilian", "B23", ("closed sicilian",)),
-    Opening("Hyperaccelerated Dragon", "B27", ("hyperaccelerated", "hyper accelerated", "hyper-accelerated")),
+    Opening(
+        "Hyperaccelerated Dragon",
+        "B27",
+        ("hyperaccelerated", "hyper accelerated", "hyper-accelerated"),
+    ),
     Opening("Rossolimo", "B31", ("rossolimo",)),
     Opening("Kalashnikov", "B32", ("kalashnikov",)),
     Opening("Sveshnikov", "B33", ("sveshnikov",)),
@@ -169,11 +180,17 @@ OPENINGS: tuple[Opening, ...] = (
     Opening("Queen's Gambit Accepted", "D2", ("qga",)),
     Opening("Queen's Gambit", "D", ("qgd", "queens gambit", "queen's gambit")),
     Opening("Tarrasch", "D32", ("tarrasch",)),
-    Opening("QGD Exchange", "D35", ("qgd exchange", "queens gambit exchange", "queen's gambit exchange")),
+    Opening(
+        "QGD Exchange", "D35", ("qgd exchange", "queens gambit exchange", "queen's gambit exchange")
+    ),
     Opening("Ragozin", "D38", ("ragozin",)),
     Opening("Semi-Slav", "D4", ("semi slav", "semi-slav")),
     Opening("Semi-Tarrasch", "D40", ("semi tarrasch", "semi-tarrasch")),
-    Opening("Botvinnik Semi-Slav", "D44", ("botvinnik variation", "botvinnik semi slav", "botvinnik semi-slav")),
+    Opening(
+        "Botvinnik Semi-Slav",
+        "D44",
+        ("botvinnik variation", "botvinnik semi slav", "botvinnik semi-slav"),
+    ),
     Opening("Meran", "D46", ("meran",)),
     Opening("Cambridge Springs", "D52", ("cambridge springs",)),
     Opening("Lasker Defense", "D56", ("lasker defense", "lasker defence")),
@@ -207,8 +224,16 @@ OPENINGS: tuple[Opening, ...] = (
     Opening("Nimzo-Indian Rubinstein", "E4", ("nimzo rubinstein", "nimzo-indian rubinstein")),
     Opening("King's Indian", "E", ("kid", "kings indian", "king's indian")),
     Opening("Averbakh", "E73", ("averbakh",)),
-    Opening("KID Four Pawns", "E76", ("kid four pawns", "kings indian four pawns", "king's indian four pawns")),
-    Opening("KID Samisch", "E80", ("kid samisch", "kid sämisch", "kings indian samisch", "king's indian samisch")),
+    Opening(
+        "KID Four Pawns",
+        "E76",
+        ("kid four pawns", "kings indian four pawns", "king's indian four pawns"),
+    ),
+    Opening(
+        "KID Samisch",
+        "E80",
+        ("kid samisch", "kid sämisch", "kings indian samisch", "king's indian samisch"),
+    ),
     Opening("Mar del Plata", "E97", ("mar del plata",)),
     # --- Flank and irregular (A0x-A3x) ---
     Opening("Polish", "A00", ("polish opening", "sokolsky", "orangutan")),
