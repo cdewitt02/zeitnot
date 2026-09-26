@@ -18,6 +18,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from zeitnot.openings import OPENINGS
 from zeitnot.search.filters import GameFilters
 
 
@@ -40,58 +41,13 @@ class ParseResult:
     extracted_filters: list[str] = field(default_factory=list[str])
 
 
+# Derived, not written out. The openings live in `zeitnot.openings`, which the
+# classifier reads too; a second hand-maintained table here is what let the two
+# disagree on 37 spellings while neither carried the Danish Gambit (#41).
 OPENING_PATTERNS: dict[str, OpeningPattern] = {
-    # Sicilian variations (B20-B99)
-    "sicilian": OpeningPattern("B", "Sicilian"),
-    "sicilian najdorf": OpeningPattern("B9", "Sicilian"),
-    "najdorf": OpeningPattern("B9", "Najdorf"),
-    "dragon": OpeningPattern("B7", "Dragon"),
-    "sicilian dragon": OpeningPattern("B7", "Dragon"),
-    # King's Indian (E60-E99)
-    "king's indian": OpeningPattern("E", "King's Indian"),
-    "kings indian": OpeningPattern("E", "King's Indian"),
-    "kid": OpeningPattern("E", "King's Indian"),
-    # Queen's Gambit (D06-D69)
-    "queen's gambit": OpeningPattern("D", "Queen's Gambit"),
-    "queens gambit": OpeningPattern("D", "Queen's Gambit"),
-    "qgd": OpeningPattern("D", "Queen's Gambit"),
-    "qga": OpeningPattern("D", "Queen's Gambit Accepted"),
-    # Ruy Lopez (C60-C99)
-    "ruy lopez": OpeningPattern("C6", "Ruy Lopez"),
-    "spanish": OpeningPattern("C6", "Ruy Lopez"),
-    "spanish game": OpeningPattern("C6", "Ruy Lopez"),
-    # French Defense (C00-C19)
-    "french": OpeningPattern("C0", "French"),
-    "french defense": OpeningPattern("C0", "French"),
-    "french defence": OpeningPattern("C0", "French"),
-    # Caro-Kann (B10-B19)
-    "caro-kann": OpeningPattern("B1", "Caro-Kann"),
-    "caro kann": OpeningPattern("B1", "Caro-Kann"),
-    # Italian Game (C50-C59)
-    "italian": OpeningPattern("C5", "Italian"),
-    "italian game": OpeningPattern("C5", "Italian"),
-    "giuoco piano": OpeningPattern("C5", "Italian"),
-    # English Opening (A10-A39)
-    "english": OpeningPattern("A1", "English"),
-    "english opening": OpeningPattern("A1", "English"),
-    # London System (D00)
-    "london": OpeningPattern("D00", "London"),
-    "london system": OpeningPattern("D00", "London"),
-    # Scandinavian (B01)
-    "scandinavian": OpeningPattern("B01", "Scandinavian"),
-    # Pirc Defense (B07-B09)
-    "pirc": OpeningPattern("B0", "Pirc"),
-    "pirc defense": OpeningPattern("B0", "Pirc"),
-    # Dutch Defense (A80-A99)
-    "dutch": OpeningPattern("A8", "Dutch"),
-    "dutch defense": OpeningPattern("A8", "Dutch"),
-    # Nimzo-Indian (E20-E59)
-    "nimzo-indian": OpeningPattern("E", "Nimzo-Indian"),
-    "nimzo indian": OpeningPattern("E", "Nimzo-Indian"),
-    "nimzo": OpeningPattern("E", "Nimzo-Indian"),
-    # Grunfeld (D70-D99)
-    "grunfeld": OpeningPattern("D7", "Grunfeld"),
-    "grünfeld": OpeningPattern("D7", "Grunfeld"),
+    alias: OpeningPattern(opening.eco_prefix, opening.name)
+    for opening in OPENINGS
+    for alias in opening.aliases
 }
 
 RESULT_KEYWORDS: dict[str, str] = {

@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from enum import Enum
 
+from zeitnot.openings import OPENINGS
+
 
 class QueryType(Enum):
     """What the question is asking for, which decides what context is assembled."""
@@ -172,53 +174,38 @@ def mentions_openings(question: str) -> bool:
     return _contains_any(question.lower(), _OPENING_TOPIC_KEYWORDS)
 
 
-# Common chess openings for detection. A tuple, not a set: the order is the
-# output order, and a set would make it depend on hashing.
-OPENING_PATTERNS = (
-    "sicilian",
-    "italian",
-    "spanish",
-    "ruy lopez",
-    "french",
-    "caro-kann",
-    "caro kann",
-    "scandinavian",
-    "pirc",
-    "modern",
-    "king's indian",
-    "kings indian",
-    "queen's gambit",
-    "queens gambit",
-    "london",
-    "english",
-    "catalan",
-    "nimzo",
-    "grunfeld",
-    "dutch",
-    "scotch",
-    "vienna",
-    "petroff",
-    "philidor",
-    "alekhine",
-    "benoni",
-    "slav",
-    "budapest",
-    "benko",
-    "trompowsky",
-    "bird",
-    "ponziani",
-    "evan's gambit",
-    "evans gambit",
-    "king's gambit",
-    "kings gambit",
-)
-
 _ECO_PATTERN = re.compile(r"\b[A-E]\d{2}\b")
 
 
 def extract_mentioned_openings(question: str) -> list[str]:
-    """Find any chess openings named in the query, by name or by ECO code."""
+    """Find any chess openings named in the query, by name or by ECO code.
+
+    The openings come from `zeitnot.openings.OPENINGS`, which the parser reads
+    too — this used to be a list of its own, and the two drifted until neither
+    knew the Danish Gambit (#41).
+
+    One opening reports at most once, as the **shortest** of its spellings the
+    question contains, because that is the one that matches the most stored
+    opening names: `french` finds `French Defense Advance Variation`, while
+    `french defense` would miss anything Chess.com happens to call something
+    else. What comes back feeds `QueryRouter._write_mentioned_opening_stats`,
+    which looks each one up in the player's own openings, so every extra entry
+    is another stats block in the prompt.
+    """
     q = question.lower()
-    found = [opening for opening in OPENING_PATTERNS if opening in q]
+    matched = [(o, [a for a in o.aliases if a in q]) for o in OPENINGS]
+    matched = [(o, present) for o, present in matched if present]
+
+    found: list[str] = []
+    for opening, present in matched:
+        # A question about the Najdorf says "sicilian" only inside "sicilian
+        # najdorf". Reporting the Sicilian as well would put every Sicilian
+        # game's stats next to it, so an opening drops out when everything the
+        # question spelled for it was part of a longer opening's name.
+        longer = [a for other, others in matched if other is not opening for a in others]
+        if all(any(a != b and a in b for b in longer) for a in present):
+            continue
+        found.append(min(present, key=len))
+
     found.extend(_ECO_PATTERN.findall(question.upper()))
     return found
