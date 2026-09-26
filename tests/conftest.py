@@ -5,6 +5,11 @@ of the rewrite plan verifies the database layer "against the live corpus, not
 fixtures", because a float-conversion bug in the vector path is exactly the kind
 of defect a fixture would reproduce faithfully and wrongly.
 
+They assume that database was ingested by the current tree. A corpus is
+disposable ([ADR 0004](../docs/adr/0004-the-corpus-is-ephemeral.md)): when a
+corpus test fails on a database ingested by older code, the answer is to drop it
+and re-ingest, not to teach the test about old rows.
+
 Nothing here reads a gitignored file any more. The corpus-derived goldens were
 retired in [ADR 0003](../docs/adr/0003-retire-the-parity-goldens.md); what is
 left in `testdata/golden/` is committed, so a fixture that skips on a missing

@@ -68,11 +68,7 @@ def extract_summary_data(
         result = "won"
     elif winner == "draw":
         # Was `winner == ""` until 2026-08-31, which game_result() never returns
-        # — so every draw fell through to "lost". Preserved through the port on
-        # purpose (any diff there was supposed to mean a porting bug), fixed
-        # here as its own change. Summaries written before the fix say "lost"
-        # for a draw; `zeitnot data reembed` after regenerating them realigns
-        # the vectors with their own text.
+        # — so every draw fell through to "lost".
         result = "drew"
     else:
         result = "lost"
@@ -177,21 +173,9 @@ def classify_game_length(total_moves: int) -> str:
 def weakest_phase(opening: PhaseStats, middlegame: PhaseStats, endgame: PhaseStats) -> str:
     """Name the phase with the highest average centipawn loss.
 
-    PARITY: "Endgame was weakest" is the `else` catch-all, so **any tie between
-    two phase averages is reported as an endgame weakness** rather than as a
-    tie. Reconstructing this across all 74 stored games: 53 endgame verdicts are
-    strictly correct, 20 middlegame, 1 opening, and zero reach the tie-fallback.
-
-    The defect is real and currently unreached, and it is preserved exactly
-    anyway. "Unreached on today's corpus" is not "unreachable": the first user
-    with different games hits the branch, the two implementations diverge, and
-    nothing fails — because the goldens were captured from a corpus where it
-    never fired. Fixing it is a post-cutover change with its own verification,
-    and it makes the stored corpus internally inconsistent until summaries are
-    regenerated.
-
-    The three divisions are int-to-float and IEEE-754 in both languages, so the
-    bits and the `>` results are identical. No epsilon is involved.
+    "Endgame was weakest" is the `else` catch-all, so a tie between two phase
+    averages is reported as an endgame weakness rather than as a tie. That is
+    issue #32.
     """
     opening_avg = opening.total_cpl / opening.move_count if opening.move_count > 0 else 0.0
     middlegame_avg = (
@@ -241,18 +225,18 @@ def detect_pattern(data: GameSummaryData) -> str:
 
 
 def strip_unnormalized_termination(summary_text: str) -> str:
-    """Drop the termination line when it predates `normalize_termination`.
+    """Drop the termination line when it is not in normalized form.
 
-    **A stored summary is not necessarily a safe summary.** Normalization runs
-    when a summary is generated, so every game ingested before readiness P0-8
-    landed still has "FLAJarda won on time" sitting in `summary_text`, and that
-    text is retrieved and placed in the prompt verbatim. Re-ingesting fixes the
-    stored row; nothing in a chat session can, because the row is what there is.
+    Chess.com writes terminations as "FLAJarda won on time", and
+    `normalize_termination` strips the handle when a summary is generated. A
+    summary in a database ingested before that landed (P0-8, 2026-08-31) still
+    carries the raw string. The remedy for that database is to re-ingest
+    (ADR 0004), but this text is placed in the prompt verbatim and can reach a
+    hosted Chat Provider, so a user who has not re-ingested should not leak an
+    opponent's username for it. This is defence in depth, not compatibility.
 
     So the line is dropped rather than repaired. The result, colour, opening,
-    error counts and opponent rating all survive — the summary is anonymous
-    without this line, which is exactly what P0-8 established when it removed the
-    handle from newly written ones.
+    error counts and opponent rating all survive.
 
     A summary written by the current tree is returned unchanged.
     """

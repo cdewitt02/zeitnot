@@ -162,9 +162,9 @@ def doctor() -> None:
 def _corpus_username(database: DB, typed: str) -> str:
     """Resolve a typed name to the corpus's spelling, or fail naming the remedy.
 
-    For the two commands that only read. `analyze` resolves against the archive
-    it just fetched instead, which is authoritative where this is merely
-    consistent with it.
+    For `chat`, which only reads. `analyze` resolves against the archive it just
+    fetched instead, which is authoritative where this is merely consistent with
+    it.
     """
     resolved = database.canonical_username(typed)
     if resolved is None:
@@ -278,51 +278,6 @@ def analyze(
         stats = database.refresh_player_stats(username)
         win_rate = stats.wins / stats.total_games * 100 if stats.total_games else 0.0
         print(f"Stats updated: {stats.total_games} total games, {win_rate:.1f}% win rate")
-
-
-@data_app.command("refresh-stats")
-def refresh_stats(username: Annotated[str, typer.Argument(help="Chess.com username")]) -> None:
-    """Recompute the aggregate stats for a player."""
-    with _open_db() as database:
-        database.migrate()
-
-        username = _corpus_username(database, username)
-        print(f"Refreshing stats for {username}...")
-        start = time.monotonic()
-        stats = database.refresh_player_stats(username)
-        print(f"Stats refreshed in {time.monotonic() - start:.3f}s")
-
-        print(f"\nPlayer: {stats.username}")
-        print(
-            f"Total Games: {stats.total_games} "
-            f"(W: {stats.wins}, L: {stats.losses}, D: {stats.draws})"
-        )
-        print(f"Average CPL: {stats.avg_cpl:.1f}")
-
-        # Sorted, where the Go version ranged maps. This is display output
-        # rather than prompt text, but a listing that reorders between runs is
-        # still worse than one that does not.
-        if stats.stats_by_color:
-            print("\nBy Color:")
-            for color in sorted(stats.stats_by_color):
-                s = stats.stats_by_color[color]
-                print(
-                    f"  {color}: {s.games} games, {s.win_rate:.1f}% win rate, "
-                    f"{s.avg_cpl:.1f} avg CPL"
-                )
-
-        if stats.stats_by_time_class:
-            print("\nBy Time Class:")
-            for tc in sorted(stats.stats_by_time_class):
-                s = stats.stats_by_time_class[tc]
-                print(
-                    f"  {tc}: {s.games} games, {s.win_rate:.1f}% win rate, {s.avg_cpl:.1f} avg CPL"
-                )
-
-        if stats.stats_by_termination:
-            print("\nBy Termination:")
-            for term in sorted(stats.stats_by_termination):
-                print(f"  {term}: {stats.stats_by_termination[term]}")
 
 
 @data_app.command("reembed")
