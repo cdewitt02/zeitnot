@@ -329,6 +329,31 @@ def preflight(warn: TextIO, *models: Any) -> None:
             raise
 
 
+def check_embedding_width(database: DB, embedder: Embedder, warn: TextIO) -> None:
+    """Refuse an embedder whose vectors will not fit `game_summaries.embedding`.
+
+    Split out of `check_index` for `reembed`, which must skip the provenance
+    half — it is the command that resolves a provenance mismatch — but not this
+    one: no re-embed can succeed into a column of the wrong width.
+    """
+    dims = embedder.dimensions()
+    if dims <= 0:
+        return
+    try:
+        column_dims = database.embedding_dimensions()
+    except Exception as err:
+        print(
+            f"Warning: could not read the embedding column width: {redact_secrets(str(err))}",
+            file=warn,
+        )
+        return
+    if column_dims > 0 and column_dims != dims:
+        raise ConfigError(
+            f"embedding width mismatch: {embedder.name()}/{embedder.model()} produces "
+            f"{dims} dimensions but game_summaries.embedding is vector({column_dims})"
+        )
+
+
 def check_index(database: DB, embedder: Embedder, adopt: bool, warn: TextIO) -> None:
     """Verify that the configured embedder matches the index it will query or
     extend.
@@ -345,21 +370,7 @@ def check_index(database: DB, embedder: Embedder, adopt: bool, warn: TextIO) -> 
     """
     from zeitnot.db import IndexMeta
 
-    dims = embedder.dimensions()
-    if dims > 0:
-        try:
-            column_dims = database.embedding_dimensions()
-        except Exception as err:
-            print(
-                f"Warning: could not read the embedding column width: {redact_secrets(str(err))}",
-                file=warn,
-            )
-        else:
-            if column_dims > 0 and column_dims != dims:
-                raise ConfigError(
-                    f"embedding width mismatch: {embedder.name()}/{embedder.model()} produces "
-                    f"{dims} dimensions but game_summaries.embedding is vector({column_dims})"
-                )
+    check_embedding_width(database, embedder, warn)
 
     try:
         meta = database.get_index_meta()
@@ -374,7 +385,7 @@ def check_index(database: DB, embedder: Embedder, adopt: bool, warn: TextIO) -> 
             IndexMeta(
                 embed_provider=embedder.name(),
                 embed_model=embedder.model(),
-                dimensions=dims,
+                dimensions=embedder.dimensions(),
             )
         )
         return
