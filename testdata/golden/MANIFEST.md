@@ -109,13 +109,11 @@ you nothing.
 
 ## What is checked against the live corpus instead
 
-Two claims need a database and no golden, and both are `corpus`-marked:
+One claim needs a database and no golden, and it is `corpus`-marked. (A second,
+`tests/test_summary_corpus.py`, re-derived every stored summary; it only ever
+reported that the corpus predated the tree, and was removed by
+[ADR 0004](../../docs/adr/0004-the-corpus-is-ephemeral.md).)
 
-- `tests/test_summary_corpus.py` re-derives every stored summary from the stored
-  `games` and `moves` rows and compares it against the stored `summary_text`.
-  The Go capture did this too — 74 of 74 matched at the capture commit — and it
-  is the only check that catches summary text drifting away from the vectors it
-  was embedded from.
 - `tests/test_engine.py::test_move_identity_and_fens_still_match_the_stored_corpus`
   replays every stored PGN and checks `played_move` and `fen_before`. These are
   the half of a `moves` row that comes from parsing and board replay rather than

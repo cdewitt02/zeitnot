@@ -84,9 +84,10 @@ outcome and method — "lost by resignation" — before they reach the prompt or
 stored summary. Anything in an unrecognized format collapses to "lost by other
 means" rather than being passed through.
 
-If you ingested games before this change, run `zeitnot data refresh-stats
-<username>` to rebuild the aggregates. Summaries written earlier still carry the
-old text until they are regenerated.
+A corpus ingested before this change still has the raw strings stored. They are
+withheld when the prompt is assembled, so nothing leaks, but the per-ending
+breakdown is missing until you
+[ingest again](troubleshooting.md#starting-over).
 
 Failures are reported, never silently retried on another provider: an Anthropic
 error answered from `llama3.2` would leave you comparing outputs without knowing

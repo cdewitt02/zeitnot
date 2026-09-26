@@ -13,7 +13,9 @@ A few properties are easy to break with a change that looks like a cleanup:
   tool. Normalization at write time is not sufficient on its own: a corpus
   analyzed before 2026-08-31 still has handles in stored `summary_text` and in
   `player_stats.stats_by_termination`, so `zeitnot/chat/router.py` withholds
-  both at assembly. `tests/test_router_prompt.py` asserts it for every query
+  both at assembly. That is the one place the code still accounts for rows
+  written by older code ([ADR 0004](adr/0004-the-corpus-is-ephemeral.md)), and
+  only because the failure is a privacy leak rather than a wrong answer. `tests/test_router_prompt.py` asserts it for every query
   type, and `tests/test_prompt_snapshot.py` would show any handle that reached
   the prompt as a diff. Both run without a database.
 - **A loop index over `MoveAnalysis` is a ply, and every boundary written in
@@ -35,7 +37,7 @@ A few properties are easy to break with a change that looks like a cleanup:
   carries the registered capitalization, so the name a user types and the name
   on the rows are routinely different strings. `zeitnot data analyze` resolves
   against the archive it just fetched (`canonical_username` in
-  `zeitnot/models/game.py`); `refresh-stats` and `chat` resolve against the
+  `zeitnot/models/game.py`); `chat` resolves against the
   corpus (`DB.canonical_username`), which holds the same spelling because
   `white_username` is written straight from the payload. Everything downstream —
   the colour decision in `summary.py`, every `white_username = %s` in
@@ -116,14 +118,13 @@ change that moved it, never on its own to clear a red test.
 
 ## What the database checks that no file can
 
-Two `corpus`-marked tests compare the tree against the live database, needing no
-golden at all:
+`corpus`-marked tests compare the tree against a real database, needing no golden
+at all. They assume that database was freshly ingested by the current tree: a
+corpus is disposable ([ADR 0004](adr/0004-the-corpus-is-ephemeral.md)), so a
+corpus test that fails on a database ingested by older code is answered by
+[starting over](troubleshooting.md#starting-over), not by teaching the test about
+old rows.
 
-- **Every stored summary must re-derive from the stored rows.**
-  `tests/test_summary_corpus.py`. The summary text *is* the embedded text, so a
-  mismatch means the stored vector no longer corresponds to its own source and
-  nothing anywhere errors. **This currently fails on any corpus analyzed before
-  2026-09-14**, and correctly — see the next section.
 - **`played_move` and `fen_before` must match a fresh replay.**
   `tests/test_engine.py`. These come from PGN parsing and board replay rather
   than from Stockfish, so they stay reproducible whatever engine build wrote the
@@ -131,36 +132,11 @@ golden at all:
   and what caught `get_moves_for_game` ordering by a column with two rows per
   value.
 
-## One preserved defect
+## Changing derived data
 
-`zeitnot/summary.py` carried two bugs on purpose, preserved through the port so
-that any diff meant a porting error rather than a deliberate improvement. **One
-is now fixed**; one remains.
-
-**Fixed 2026-08-31 — a drawn game was summarized as a loss.** `game_result()`
-returns `"draw"` and never `""`, so the `drew` branch was dead. Covered by
-`tests/test_summary.py`, which runs with no database and no goldens.
-
-**Still preserved — `weakest_phase` reports "Endgame was weakest" on any tie**,
-because the endgame is the `else` catch-all. It was unreached on the 74 games of
-the retired capture, which is not the same as unreachable. Fixing it changes Game
-Summary text, so it needs its own change with its own verification;
-`tests/test_summary.py` guards against it being fixed incidentally.
-
-**Anything that changes summary text changes the embedded text**, which makes
-stored vectors stale relative to their own source. A fresh clone is unaffected,
-since it ingests from scratch — **an existing corpus currently has no way
-forward.** `zeitnot data reembed` rebuilds vectors from the stored text without
-regenerating it, and `zeitnot data analyze` skips any game where `game_exists()`
-is true, so the regeneration pass every doc in this repository refers to has
-never been built. It needs only `games` and `moves`, both stored, and no
-Stockfish.
-
-**Since 2026-09-15 something does detect it.**
-`tests/test_summary_corpus.py` re-derives every stored summary and fails when it
-no longer matches, naming the summary lines that moved. On the maintainer's
-195-game corpus it reports all 195 drifted: 195 termination lines, 87
-weakest-phase lines, and 7 each of the result and pattern lines — the
-normalization, phase-boundary, and draw fixes respectively. That is the check
-failing correctly on a stale corpus, not a regression, and it stays red until the
-regeneration pass exists. It is `corpus`-marked, so CI is unaffected.
+Anything computed at ingest — Game Summary text, `moves` analysis, the
+`player_stats` aggregate, the schema — can change freely. **The summary text is
+the embedded text**, so a change to it leaves an existing corpus's vectors
+describing text the tree no longer writes; the remedy is to re-ingest, and the
+pull request says so. There is deliberately no regeneration pass and no
+migration (ADR 0004).

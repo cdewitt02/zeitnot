@@ -60,7 +60,7 @@ check rather than skipping silently.
 | Marker | Needs | Skips when |
 |---|---|---|
 | *(unmarked)* | nothing | never — these must always run |
-| `corpus` | `DATABASE_URL` pointing at a populated database | it is unset |
+| `corpus` | `DATABASE_URL` pointing at a database freshly ingested by the current tree | it is unset |
 
 There used to be a third, `golden`, for tests reading a corpus capture that
 existed on one machine. Those files were retired in
@@ -77,14 +77,11 @@ The corpus-backed tests run against the **live** database on purpose. A
 float-conversion bug in the vector path is exactly the kind of defect a fixture
 would reproduce faithfully and wrongly.
 
-**One `corpus` test fails on any corpus analyzed before 2026-09-14, and that is
-correct.** `tests/test_summary_corpus.py` checks that every stored summary still
-re-derives from the `games` and `moves` rows next to it. Three deliberate changes
-— termination normalization, the phase-boundary fix, and the draw fix — moved the
-text without a way to regenerate what is stored, so an older corpus genuinely has
-summaries their own vectors no longer describe. The failure names which summary
-lines moved. If the lines it names are those three, you have a stale corpus and
-not a regression; if it names something else, look at your change.
+**A corpus is disposable** ([ADR 0004](docs/adr/0004-the-corpus-is-ephemeral.md)).
+If a `corpus` test fails on a database ingested by older code, that is not a
+regression and not something to skip around: drop the database and ingest again
+([Starting over](docs/troubleshooting.md#starting-over)). If it still fails on a
+fresh ingest, look at your change.
 
 ## Commits
 
@@ -97,7 +94,7 @@ log is the design record for anything not written down in `docs/`.
 properties that are easy to break with a change that looks like a cleanup: the
 sorted-iteration rule the assembled prompt depends on, what the committed
 expected-output tables are for and how to regenerate the prompt snapshots
-honestly, and the one preserved defect still in `summary.py`.
+honestly, and what a change to data derived at ingest owes an existing corpus.
 
 A change to the assembled prompt turns `tests/test_prompt_snapshot.py` red with
 a diff. Read it, decide whether it is what you meant, and if it is, regenerate

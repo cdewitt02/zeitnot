@@ -1,6 +1,6 @@
 # ADR 0004 — The corpus is ephemeral
 
-**Status:** Proposed · 2026-09-26 · tracked in [#49](https://github.com/cdewitt02/zeitnot/issues/49)
+**Status:** Accepted · 2026-09-26 · tracked in [#49](https://github.com/cdewitt02/zeitnot/issues/49)
 
 ## Context
 

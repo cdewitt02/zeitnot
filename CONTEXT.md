@@ -59,6 +59,10 @@ implementation language. It is *not* the whole of what the Chat Provider sees â€
 
 The set of Game Summaries and their embeddings for one player. What retrieval searches over.
 
+Disposable: everything in it is derived from Chess.com's archive and a Stockfish pass, so a change to
+anything derived at ingest is taken up by dropping the database and ingesting again, never by repairing
+stored rows. See [`docs/adr/0004-the-corpus-is-ephemeral.md`](docs/adr/0004-the-corpus-is-ephemeral.md).
+
 ## Assembled Prompt
 
 The complete text handed to the Chat Provider for one question: the retrieved Game Summaries, the
@@ -80,6 +84,10 @@ Wall-clock minutes from "nothing installed" to a first answer about one's own ga
 Ingestion, which is why it can never fall below roughly fifteen minutes.
 
 ## Preserved Defect
+
+*Historical â€” no longer used for new work.* Retired by
+[ADR 0004](docs/adr/0004-the-corpus-is-ephemeral.md) once no port was in flight; the term survives
+because ADR 0002 and ADR 0003 use it.
 
 A known-wrong behavior reproduced deliberately rather than fixed, so that a port's output can be
 compared byte-for-byte against the implementation it replaces. Each one is marked in the code, listed
