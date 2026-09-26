@@ -293,11 +293,12 @@ class QueryRouter:
         # Useful for questions about flagging, checkmates, and so on — and the
         # one section whose *keys* come from Chess.com rather than from this
         # codebase. Terminations are normalized when a stats row is written, so
-        # a row written before that landed still reads "2DBEACH won by
-        # resignation". Refusing the whole section is the only safe response: the
-        # keys cannot be repaired here (the player's own result is not in the
-        # aggregate), and dropping them one at a time would leave percentages
-        # that no longer sum. `zeitnot data refresh-stats <username>` rebuilds it.
+        # a row in a database ingested before that landed still reads "2DBEACH
+        # won by resignation". Re-ingesting fixes the row (ADR 0004); this guard
+        # keeps an opponent's handle away from a hosted Chat Provider until then.
+        # Refusing the whole section is the only safe response: the keys cannot
+        # be repaired here (the player's own result is not in the aggregate), and
+        # dropping them one at a time would leave percentages that no longer sum.
         if stats.stats_by_termination:
             if all(is_normalized_termination(term) for term in stats.stats_by_termination):
                 sb.write("\nGame endings:\n")

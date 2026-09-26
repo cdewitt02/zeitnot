@@ -20,7 +20,7 @@ rather than deleted, so the audit's findings stay traceable to their resolution.
 | Item | Status | Closed by |
 |---|---|---|
 | P0-1 Module path | **Moot** | No `go.mod`. Distribution naming is now a packaging question — see P4-1 |
-| P0-3 Broken ingestion command | **Done** (mostly) | `zeitnot data analyze` in README. *`refresh-stats` is still undocumented* — see P0-9 |
+| P0-3 Broken ingestion command | **Done** | `zeitnot data analyze` in README. `refresh-stats` was documented (P0-9), then removed by [ADR 0004](../adr/0004-the-corpus-is-ephemeral.md) |
 | P0-4 Config divergence | **Done** | `zeitnot/config.py` resolves providers once for both entrypoints; `NUM_WORKERS` and the 768-dim constraint are documented |
 | P0-5 Chess.com status check | **Done** | `zeitnot/api.py` errors on every non-2xx, sets a User-Agent, carries a timeout |
 | P0-6 Embedding status check | **Done** | `zeitnot/llm/ollama.py:104` checks status and rejects an empty embedding |
@@ -28,7 +28,7 @@ rather than deleted, so the audit's findings stay traceable to their resolution.
 | P1-1 `gofmt` sweep | **Moot** | `ruff format` — the tree was born formatted, so there is no sweep to sequence |
 | P1-2 CI | **Done** | `.github/workflows/ci.yml`: ruff, `mypy --strict`, pytest on 3.11 and 3.13 |
 | P1-3 CONTRIBUTING | **Done** | Includes the honest testing matrix the audit asked for (markers, not prose) |
-| P2-1 Test the summary package | **Done** | `tests/test_summary.py` and `tests/test_summary_corpus.py` — and it *did* surface real bugs, now the two Preserved Defects (one since fixed) |
+| P2-1 Test the summary package | **Done** | `tests/test_summary.py` — and it *did* surface real bugs, the two Preserved Defects (one since fixed, the other now #32). `tests/test_summary_corpus.py` was removed by ADR 0004 |
 | P2-2 Make the engine testable | **Done** | `python-chess`'s `SimpleEngine` replaced the UCI wrapper; `tests/test_engine.py` covers the sign and CPL logic |
 | P2-3 Startup preflight | **Done** | `config.preflight` runs before the banner; `config.check_index` guards provenance |
 | P2-4 Actionable errors | **Done** | `zeitnot/llm/errors.py` classifies by kind; messages name the remedy |
@@ -59,7 +59,10 @@ and are gone. Three replace them:
    capture tool in front of anything. P0-8 and both Preserved Defects are now sequenced only by their
    own merits. A change to the Assembled Prompt shows up as a diff in
    `testdata/golden/prompt_snapshots/`, committed and regenerated in the same change.
-2. **The Game Summary regeneration pass before either Preserved Defect.** This replaces the capture
+2. ~~**The Game Summary regeneration pass before either Preserved Defect.**~~ **Lifted 2026-09-26.**
+   The corpus is disposable ([ADR 0004](../adr/0004-the-corpus-is-ephemeral.md)): a change to summary
+   text is taken up by re-ingesting, so there is no regeneration pass (#10, closed) and nothing in front
+   of #32. The original constraint, for the record: This replaces the capture
    tool as the real blocker, and it always was the real one: changing summary text makes every stored
    vector stale against its own source, and no command repairs that today. The corpus is *already*
    spanning three such changes — `tests/test_summary_corpus.py` now fails loudly rather than letting it
@@ -115,8 +118,8 @@ resignation". Applied at the aggregation site in `zeitnot/db/__init__.py` (which
 "<result> by other means" rather than passing through, because an unparsed string is exactly where a
 handle might still hide.
 
-**Operator action for an existing corpus.** `zeitnot data refresh-stats <username>` rebuilds the
-aggregates. Summaries written before the change keep the old text until regenerated, then re-embedded.
+**Operator action for an existing corpus.** *(Superseded by ADR 0004: re-ingest.)*
+`zeitnot data refresh-stats <username>` rebuilds the aggregates. Summaries written before the change keep the old text until regenerated, then re-embedded.
 A fresh clone is unaffected.
 
 **Amended 2026-09-14 — there were four paths, not two, and "operator action" was the wrong remedy.**
@@ -140,6 +143,9 @@ invariant now, and `tests/test_router_prompt.py` asserts it without needing a da
 ---
 
 ### P0-9 · Document the `refresh-stats` subcommand
+
+*Done 2026-09-25 (#48), then superseded: the subcommand was removed by
+[ADR 0004](../adr/0004-the-corpus-is-ephemeral.md).*
 
 **Problem.** The audit's P0-3 asked for two things: fix the broken ingestion command, and document the
 undocumented `refresh-stats` subcommand. The rewrite delivered the first — `zeitnot data analyze` is
@@ -187,10 +193,8 @@ suggestions are all spent** — the summary tests exist, the dead `TestData` str
 the Stockfish error message is fixed, and the `for`-loop wart is gone. Current candidates from the live
 docs instead:
 
-- P0-9 above — documenting `refresh-stats`, genuinely a first PR.
 - P3-4's troubleshooting section, one entry at a time.
 - The `NUM_WORKERS` guidance in P3-3.
-- The Game Summary regeneration pass (sequencing constraint 2) for someone who wants something meatier.
 
 **Effort.** S.
 

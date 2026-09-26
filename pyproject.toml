@@ -86,5 +86,5 @@ testpaths = ["tests"]
 # `testdata/golden/` is committed, so no test can fail to find its file any
 # more and the marker had nothing left to guard.
 markers = [
-    "corpus: requires the live database (DATABASE_URL)",
+    "corpus: requires a database freshly ingested by the current tree (DATABASE_URL)",
 ]

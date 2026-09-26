@@ -5,10 +5,6 @@ runs — including in CI, which is the whole point. This module absorbed the
 corpus-free half of `test_parity_summary.py` when the corpus-derived goldens
 were retired ([ADR 0003](../docs/adr/0003-retire-the-parity-goldens.md)); the
 half that compared against `summaries.json` went with the file.
-
-The claim that file made which does *not* die with it — that every stored
-summary still re-derives from the stored `games` and `moves` rows — is in
-`test_summary_corpus.py`, which needs the database and no golden at all.
 """
 
 from __future__ import annotations
@@ -239,21 +235,3 @@ def test_weakest_phase_picks_the_highest_average_not_the_highest_total() -> None
     endgame = PhaseStats(total_cpl=400, move_count=40)  # avg 10, highest total
     assert weakest_phase(opening, middlegame, endgame) == "Opening was weakest"
     assert weakest_phase(PhaseStats(), middlegame, PhaseStats()) == "Middlegame was weakest"
-
-
-def test_the_remaining_preserved_defect_is_still_preserved() -> None:
-    """A guard against someone "fixing" this incidentally.
-
-    `weakest_phase` reports "Endgame was weakest" on any tie, because the
-    endgame is the `else` catch-all. Fixing it changes Game Summary text and
-    therefore makes every stored vector stale relative to its own source, so it
-    needs its own change with its own verification rather than riding along
-    with something else.
-
-    This used to sit beside a second assertion, that the goldens did not yet
-    contain "drew" — a check on a captured file's staleness rather than on the
-    code. That file is retired; this half was always the one about behavior.
-    """
-    assert weakest_phase(PhaseStats(), PhaseStats(), PhaseStats()) == "Endgame was weakest", (
-        "an all-zero tie must still report the endgame; preserved defect 1 has been fixed"
-    )

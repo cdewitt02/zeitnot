@@ -137,6 +137,10 @@ capture at all — `tests/test_summary.py` pins the behavior live, and
 `tests/test_summary_corpus.py` says whether the stored corpus still agrees with the tree. The real
 sequencing constraint was always the regeneration pass, not the capture tool.
 
+**Amended 2026-09-26.** No longer true either: the corpus is disposable
+([ADR 0004](../adr/0004-the-corpus-is-ephemeral.md)), `tests/test_summary_corpus.py` is gone, and there
+is no regeneration pass to sequence behind. #32 carries the remaining work.
+
 ---
 
 **Answered 2026-09-14: it was a bug, and the boundaries now count full moves.**

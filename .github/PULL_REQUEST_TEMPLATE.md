@@ -27,14 +27,12 @@
 
 - [ ] **Changes the assembled prompt.** Any dict reaching it must be iterated
       sorted, or the prompt stops being reproducible between runs.
-- [ ] **Changes Game Summary text.** The summary text *is* the embedded text, so
-      stored vectors go stale relative to their own source — and **there is no
-      command that repairs an existing corpus.** `zeitnot data reembed` rebuilds
-      vectors from the *stored* text without regenerating it, and
-      `zeitnot data analyze` skips games it has already seen. Say so in the PR
-      rather than naming a remedy; the regeneration pass is unbuilt work, not a
-      step you forgot.
+- [ ] **Changes data derived at ingest** — Game Summary text, move analysis, the
+      aggregate stats. An existing corpus does not take the change up; say in the
+      PR that users must re-ingest. No repair command or migration is needed
+      (ADR 0004). The summary text *is* the embedded text, so `zeitnot data
+      reembed` alone is not enough.
 - [ ] **Touches a provider adapter.** Adapters must never send a parameter the
       caller did not set, and retries belong to the SDK — never a loop on top.
-- [ ] **Changes the database schema.** Nothing has yet; it is not off limits, but
-      it needs its own discussion.
+- [ ] **Changes the database schema.** No migration is needed — an existing
+      corpus is dropped and re-ingested (ADR 0004) — but say so in the PR.

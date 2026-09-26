@@ -27,14 +27,8 @@ registered capitalization, so `zeitnot data analyze Hikaru` fetched the right
 games and then matched none of them. Every summary was written from the opponent's
 side of the board and the aggregate came out empty. Any spelling works now.
 
-**A corpus ingested that way is not repaired by this fix.** The `games` rows were
-always correct — they are written from the payload — so
-`zeitnot data refresh-stats <username>` restores the aggregates. The stored
-`game_summaries.summary_text` is not: it describes the wrong player, and
-`zeitnot data reembed` only re-embeds that same wrong text. Until the
-regeneration pass exists ([#10](https://github.com/cdewitt02/zeitnot/issues/10)),
-the remedy is to delete those games and analyze the month again — `analyze` skips
-any game already stored, so re-running it alone changes nothing.
+**A corpus ingested that way is not repaired by this fix.** Its summaries
+describe the wrong player. [Start over](#starting-over) and ingest again.
 
 **Ingestion is slow**
 For scale: one month — 195 games — takes about **85 seconds** at the default
@@ -235,16 +229,30 @@ before that date every bucket was keyed by an opponent's username — which neve
 aggregated, and would leave the machine with a hosted Chat Provider. Those keys
 cannot be repaired after the fact (the player's own result is not in the
 aggregate), so the section is dropped whole rather than partly.
+Retrieved games from that era have their termination line dropped the same way.
 
-Rebuild it:
+Both are fixed by ingesting again: [start over](#starting-over).
+
+## Starting over
+
+**A corpus is disposable** ([ADR 0004](adr/0004-the-corpus-is-ephemeral.md)).
+Everything in it is derived from Chess.com's archive and a Stockfish pass, so
+when an upgrade changes how games are analyzed, summarized or aggregated, the
+remedy is to drop the database and ingest again rather than repair what is
+stored:
 
 ```bash
-zeitnot data refresh-stats <username>
+docker compose down -v
+docker compose up -d
+zeitnot data analyze <username> <year> <month>   # once per month you had
 ```
 
-Retrieved games are handled the same way but need no action: a summary written
-before the fix has its termination line dropped at assembly, and re-ingesting
-that month restores it.
+Re-running `analyze` on its own changes nothing, because it skips any game
+already stored. One month of about 195 games takes roughly 85 seconds at the
+default worker count; on a hosted Embed Provider it also re-embeds every summary.
+
+Changing only the embedding model is the exception: `zeitnot data reembed`
+rebuilds the vectors from the stored text without a Stockfish pass.
 
 ---
 
