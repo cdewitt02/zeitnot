@@ -147,6 +147,25 @@ against the same corpus produces byte-identical input to the model.
 4. **Retrieve and answer**: your question selects relevant games by hybrid
    search, and a chat model answers over those games and your statistics.
 
+## Data commands
+
+Everything that writes to the corpus lives under `zeitnot data`.
+
+| Command | What it does | When you run it |
+|---------|--------------|-----------------|
+| `zeitnot data analyze <username> <year> <month>` | Fetches one month from Chess.com, analyzes every move with Stockfish, embeds the summaries, and refreshes the aggregate stats | Routinely — this is the one that grows the corpus |
+| `zeitnot data refresh-stats <username>` | Recomputes the aggregate stats from the games already stored | Only when the stored games and the aggregates have drifted apart |
+| `zeitnot data reembed` | Rebuilds every vector from the stored summary text | After changing `EMBED_PROVIDER` or the embedding model |
+
+`analyze` already refreshes stats when it finishes, so a normal run never needs
+`refresh-stats` after it. Reach for the standalone command in the two cases
+where the games in the database changed without an analysis pass: after editing
+or deleting rows by hand, and after a change to how the aggregates are derived,
+where the games are unchanged but the numbers computed from them are not.
+
+It recomputes from the games already in the database — no Chess.com request,
+no Stockfish, no embedding — so it is cheap to run when you are unsure.
+
 ## Configuration
 
 Zeitnot reads `.env` from the working directory on every run — there is nothing
