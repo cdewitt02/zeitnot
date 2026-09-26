@@ -14,7 +14,6 @@ import pytest
 
 from tests.llmtest import FakeChatModel, FakeEmbedder, FakeStreamingChatModel
 from zeitnot.chat.classifier import QueryType
-from zeitnot.chat.prompts import PromptBuilder, aggregate_game_stats
 from zeitnot.chat.service import NO_DATA_ANSWER, Config, Service
 from zeitnot.db.records import GameRecord, SimilarGameResult
 from zeitnot.models import ColorStats, PlayerStats
@@ -308,40 +307,6 @@ def test_the_filter_note_is_appended_in_gos_slice_format() -> None:
     assert "color: black" in system
     assert "result: loss" in system
     assert "time control: blitz" in system
-
-
-def test_aggregate_game_stats_reads_the_summary_text() -> None:
-    games = [
-        _game("a", "won as white in blitz\nPlayed Sicilian.\nEndgame was weakest.\n"),
-        _game("b", "lost as black in bullet\nPlayed Sicilian.\nOpening was weakest.\n"),
-        _game("c", "lost as black in bullet\nPlayed London.\nThrew a winning position.\n"),
-    ]
-    stats = aggregate_game_stats(games)
-
-    assert stats.total_games == 3
-    assert (stats.wins, stats.losses) == (1, 2)
-    assert (stats.as_white, stats.as_black) == (1, 2)
-    assert stats.openings == {"Sicilian": 2, "London": 1}
-    assert stats.weakest_phases == {"Endgame": 1, "Opening": 1}
-    assert stats.patterns == {"Threw a winning position": 1}
-    # Preserved defect 2 in its downstream form: a drawn game's summary says
-    # "lost", so this counter is structurally unreachable.
-    assert stats.draws == 0
-
-
-def test_the_dead_prompt_builder_still_produces_its_formatting_block() -> None:
-    """build_system_prompt is not on the live path, but it is the only place the
-    markdown subset is written down. Porting it without checking it runs would
-    be porting a file, not a function."""
-    prompt = PromptBuilder("magnus").build_system_prompt(
-        [_game("a", "won as white in blitz\nPlayed Sicilian.\n")], detail_limit=5
-    )
-    assert "FORMATTING:" in prompt
-    assert "Reply in GitHub-flavored markdown" in prompt
-    assert "SUMMARY STATISTICS (based on 1 relevant games):" in prompt
-
-    empty = PromptBuilder("magnus").build_system_prompt([], detail_limit=5)
-    assert "No relevant games were found" in empty
 
 
 @pytest.mark.parametrize(

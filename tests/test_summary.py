@@ -69,16 +69,15 @@ def test_a_drawn_game_is_summarized_as_a_draw(
 
     `game_result()` returns "draw", never "", so the `drew` branch in
     `extract_summary_data` was dead and every draw was reported as a loss. This
-    was visible in the summary text, in the embeddings built from it, and in the
-    win/loss/draw tallies `prompts.py` derives by reading that text.
+    was visible in the summary text and in the embeddings built from it.
     """
     data = extract_summary_data(_game(white_result, black_result), _moves(), "player")
     assert data.result == want
 
 
 def test_a_drawn_summary_starts_with_drew() -> None:
-    """`chat/prompts.py` tallies results with `summary.startswith("drew")`, so
-    the first word is load-bearing rather than cosmetic."""
+    """The result is the first word of the embedded text, and the first thing
+    the model reads about each retrieved game."""
     data = extract_summary_data(_game("agreed", "agreed"), _moves(), "player")
     text = generate_summary(data)
     assert text.startswith("drew as white in blitz.")
