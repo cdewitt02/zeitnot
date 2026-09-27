@@ -306,6 +306,33 @@ def database_url_problem(url: str) -> str:
     return control_character_problem(url) or unexpanded_port_problem(url)
 
 
+DEFAULT_NUM_WORKERS = 4
+
+
+def num_workers(raw: str) -> tuple[int, str]:
+    """The ingestion worker count for a `NUM_WORKERS` value, and what was wrong
+    with it, or "".
+
+    An unusable value falls back rather than failing the run: a mistyped tuning
+    knob is not worth refusing to ingest over. But the fallback has to be
+    audible. `four`, `0` and `-3` all used to become 4 silently, and the run
+    printed `Starting 4 workers...` either way. So `ingest` warns and `doctor`
+    reports, both from this one function.
+    """
+    if not raw:
+        return DEFAULT_NUM_WORKERS, ""
+    try:
+        n = int(raw)
+    except ValueError:
+        n = 0
+    if n > 0:
+        return n, ""
+    return (
+        DEFAULT_NUM_WORKERS,
+        f"NUM_WORKERS={raw!r} is not a positive integer; using {DEFAULT_NUM_WORKERS}",
+    )
+
+
 # ---------- startup checks ----------
 
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from zeitnot.config import Config, ConfigError, redact_secrets, resolve
+from zeitnot.config import Config, ConfigError, num_workers, redact_secrets, resolve
 
 
 def env_of(pairs: dict[str, str]):  # type: ignore[no-untyped-def]
@@ -570,3 +570,44 @@ def test_a_directory_is_not_mistaken_for_the_binary(
 
     monkeypatch.setenv("STOCKFISH_PATH", str(tmp_path))
     assert find_stockfish() is None
+
+
+# ---------- NUM_WORKERS (#19) ----------
+
+
+@pytest.mark.parametrize(
+    ("raw", "want"),
+    [("", 4), ("1", 1), ("8", 8), ("16", 16)],
+)
+def test_a_usable_worker_count_is_used_quietly(raw: str, want: int) -> None:
+    assert num_workers(raw) == (want, "")
+
+
+@pytest.mark.parametrize("raw", ["four", "0", "-3", "2.5"])
+def test_an_unusable_worker_count_falls_back_and_says_so(raw: str) -> None:
+    """Each of these used to become 4 with nothing printed."""
+    workers, problem = num_workers(raw)
+    assert workers == 4
+    assert problem == f"NUM_WORKERS={raw!r} is not a positive integer; using 4"
+
+
+def test_ingest_warns_on_stderr_and_keeps_going(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from zeitnot import cli
+
+    monkeypatch.setenv("NUM_WORKERS", "four")
+    assert cli._num_workers() == 4  # pyright: ignore[reportPrivateUsage]
+    captured = capsys.readouterr()
+    assert captured.err == "Warning: NUM_WORKERS='four' is not a positive integer; using 4\n"
+    assert captured.out == ""
+
+
+def test_ingest_is_quiet_for_a_usable_value(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from zeitnot import cli
+
+    monkeypatch.setenv("NUM_WORKERS", "2")
+    assert cli._num_workers() == 2  # pyright: ignore[reportPrivateUsage]
+    assert capsys.readouterr().err == ""

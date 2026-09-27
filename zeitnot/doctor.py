@@ -251,6 +251,26 @@ def check_stockfish() -> Check:
     return Check("stockfish", Status.OK, f"{name or 'started'} at {found}")
 
 
+def check_num_workers(environ: Mapping[str, str]) -> Check:
+    """Whether `NUM_WORKERS` is a value ingestion will actually use.
+
+    A warning, not a failure: ingestion falls back to the default and runs. But
+    someone who set it to speed ingestion up and saw no change is exactly who
+    comes here to compare their setup with the documented one.
+    """
+    raw = environ.get("NUM_WORKERS", "")
+    workers, problem = config.num_workers(raw)
+    if problem:
+        return Check("ingestion workers", Status.WARN, problem)
+    if not raw:
+        return Check(
+            "ingestion workers",
+            Status.OK,
+            f"NUM_WORKERS is not set, so ingestion uses {workers}",
+        )
+    return Check("ingestion workers", Status.OK, f"{workers} workers")
+
+
 def check_database_url(environ: Mapping[str, str]) -> tuple[Check, str]:
     url = environ.get("DATABASE_URL", "")
     if not url:
@@ -490,6 +510,7 @@ def run(
         record(check_credentials(cfg, env))
 
     record(check_stockfish())
+    record(check_num_workers(env))
 
     url_check, url = check_database_url(env)
     record(url_check)

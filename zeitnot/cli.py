@@ -119,15 +119,10 @@ def _open_db(url: str = "") -> DB:
 
 
 def _num_workers() -> int:
-    raw = os.environ.get("NUM_WORKERS", "")
-    if raw:
-        try:
-            n = int(raw)
-        except ValueError:
-            return 4
-        if n > 0:
-            return n
-    return 4
+    workers, problem = config.num_workers(os.environ.get("NUM_WORKERS", ""))
+    if problem:
+        print(f"Warning: {problem}", file=sys.stderr)
+    return workers
 
 
 def _new_embedder(database: DB, adopt: bool) -> Embedder:

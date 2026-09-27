@@ -108,6 +108,7 @@ Prefer hosted models, or already have Postgres on port 5432? See
                             embeddings ollama / nomic-embed-text
 [skip] credentials          no hosted provider is selected
 [ ok ] stockfish            Stockfish 16 at /usr/games/stockfish
+[ ok ] ingestion workers    NUM_WORKERS is not set, so ingestion uses 4
 [ ok ] DATABASE_URL         postgres://zeitnot:***@localhost:5432/zeitnot
 [ ok ] database port        compose and DATABASE_URL both use 5432
 [ ok ] database             connected
@@ -116,7 +117,7 @@ Prefer hosted models, or already have Postgres on port 5432? See
 [ ok ] chat provider        reachable, credentials and model accepted
 [ ok ] embeddings           reachable, credentials and model accepted
 
-11 ok
+12 ok
 
 Nothing is blocking a run. Next: zeitnot data analyze <username> <year> <month>
 ```
