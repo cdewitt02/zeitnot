@@ -89,17 +89,6 @@ TIME_CLASS_KEYWORDS: dict[str, str] = {
     "daily": "daily",
 }
 
-PHASE_KEYWORDS: dict[str, str] = {
-    "opening": "opening",
-    "openings": "opening",
-    "middlegame": "middlegame",
-    "middle game": "middlegame",
-    "midgame": "middlegame",
-    "endgame": "endgame",
-    "end game": "endgame",
-    "endings": "endgame",
-}
-
 # Ordered, not sorted: this is a list in the Go tree too, and the order encodes
 # precedence — "this week" is checked before "last week", and "recent" last.
 TIME_PATTERNS: list[TimePattern] = [
@@ -195,23 +184,13 @@ class QueryParser:
                 remaining = _strip_unprotected(remaining, pattern_re)
                 break
 
-        # `label is None` means "set the field, announce nothing". The phase
-        # filter is parsed and merged but `build_where` never applies it, so
-        # announcing it told the model the games in front of it were endgame
-        # games when nothing had selected for that — the small half of #18.
-        tables: tuple[tuple[dict[str, str], str, str | None], ...] = (
-            (TIME_CLASS_KEYWORDS, "time_class", "time control: "),
-            (PHASE_KEYWORDS, "weak_phase", None),
-        )
-        for table, attribute, label in tables:
-            for keyword in sorted(table):
-                pattern_re = _word_pattern(keyword)
-                if pattern_re.search(lower):
-                    setattr(filters, attribute, table[keyword])
-                    if label is not None:
-                        extracted.append(label + table[keyword])
-                    remaining = pattern_re.sub("", remaining)
-                    break
+        for keyword in sorted(TIME_CLASS_KEYWORDS):
+            pattern_re = _word_pattern(keyword)
+            if pattern_re.search(lower):
+                filters.time_class = TIME_CLASS_KEYWORDS[keyword]
+                extracted.append("time control: " + TIME_CLASS_KEYWORDS[keyword])
+                remaining = pattern_re.sub("", remaining)
+                break
 
         now = datetime.now(UTC)
         for time_pattern in TIME_PATTERNS:

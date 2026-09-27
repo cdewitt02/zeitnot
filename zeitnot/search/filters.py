@@ -17,7 +17,6 @@ class GameFilters:
     result: str | None = None  # "win", "loss", "draw"
     user_color: str | None = None  # "white", "black"
     time_class: str | None = None  # "bullet", "blitz", "rapid"
-    weak_phase: str | None = None  # "opening", "middlegame", "endgame"
 
     # Pattern matches
     eco_prefix: str | None = None  # "B" for Sicilian, "E" for King's Indian
@@ -158,7 +157,6 @@ class GameFilters:
                 self.result,
                 self.user_color,
                 self.time_class,
-                self.weak_phase,
                 self.eco_prefix,
                 self.opening_name,
                 self.min_blunders,
@@ -188,8 +186,6 @@ class GameFilters:
             parts.append(f"color={self.user_color}")
         if self.time_class is not None:
             parts.append(f"time={self.time_class}")
-        if self.weak_phase is not None:
-            parts.append(f"phase={self.weak_phase}")
         if self.eco_prefix is not None:
             parts.append(f"eco={self.eco_prefix}*")
         if self.opening_name is not None:

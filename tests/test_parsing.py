@@ -63,7 +63,6 @@ def test_query_parsing_matches_the_golden() -> None:
         assert f.result == case["result"], question
         assert f.user_color == case["user_color"], question
         assert f.time_class == case["time_class"], question
-        assert f.weak_phase == case["weak_phase"], question
         assert f.eco_prefix == case["eco_prefix"], question
         assert f.opening_name == case["opening_name"], question
         assert f.min_blunders == case["min_blunders"], question
@@ -183,16 +182,15 @@ def test_keyword_removal_is_word_bounded() -> None:
     assert result.semantic_query == "whitespace in my games"
 
 
-def test_the_phase_filter_is_parsed_but_not_announced() -> None:
-    """The small half of #18.
-
-    `build_where` never applies `weak_phase`, so listing it in
-    `extracted_filters` put "Note: The search was filtered by: [phase: endgame]"
-    in front of the model for a set of games nothing had selected for. The field
-    stays — `hybrid.py` merges it and something may yet apply it — the claim
-    goes.
+def test_a_phase_word_is_a_topic_not_a_filter() -> None:
+    """#18. The phase used to be parsed into `weak_phase`, which `build_where`
+    never applied, and stripped from the semantic query. So "endgame" was
+    neither filtered on nor searched for, and for a while the prompt claimed it
+    had been. It now stays in the text that is embedded, next to stored
+    summaries that say "Endgame was weakest".
     """
     parser = QueryParser()
     result = parser.parse("show me my endgame losses", "u")
-    assert result.filters.weak_phase == "endgame"
     assert result.extracted_filters == ["result: loss"]
+    assert result.semantic_query == "show me my endgame"
+    assert not hasattr(result.filters, "weak_phase")
