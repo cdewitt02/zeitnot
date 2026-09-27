@@ -34,7 +34,7 @@ from tests.promptfixtures import (
 )
 from zeitnot.chat.classifier import QueryType, classify_query, mentions_openings
 from zeitnot.chat.router import QueryContext
-from zeitnot.models import ColorStats, PlayerStats
+from zeitnot.models import ColorStats, PeriodStats, PlayerStats
 
 # ---------- no opponent reaches a hosted provider ----------
 
@@ -207,6 +207,52 @@ def test_the_model_is_told_not_to_invent_what_it_was_not_given() -> None:
     memory and attributed it to the player."""
     prompt = make_prompt(QueryType.SPECIFIC_GAMES)
     assert "Do not invent moves, move orders, ECO codes, opponent names, or dates" in prompt
+
+
+def _trend_prompt(last_30: PeriodStats, last_90: PeriodStats | None = None) -> str:
+    stats = make_stats()
+    stats.last_30_days = last_30
+    stats.last_90_days = last_90
+    return make_router().build_prompt(
+        QueryContext(query_type=QueryType.TREND, player_stats=stats, games=make_games()),
+        detail_limit=DETAIL_LIMIT,
+    )
+
+
+def test_a_one_game_month_keeps_its_row_and_loses_its_verdicts() -> None:
+    """#16, with the issue's own numbers: one game in 30 days against 195
+    all-time used to arrive as "Win rate UP 54.9%" and "CPL improved by 123.2",
+    under an instruction to highlight improvements with numbers."""
+    prompt = _trend_prompt(
+        PeriodStats(games=1, wins=1, avg_cpl=40.0, win_rate=100.0),
+        PeriodStats(games=2, wins=2, avg_cpl=45.0, win_rate=100.0),
+    )
+    assert (
+        "Last 30 days: 1 game, 100.0% win rate, 40.0 avg CPL (only 1 game - too few to compare)"
+        in prompt
+    )
+    assert "Win rate UP" not in prompt
+    assert "CPL improved" not in prompt
+    assert "Last 90 days: 2 games, 100.0% win rate, 45.0 avg CPL" in prompt
+    assert "1 games" not in prompt
+
+
+def test_a_month_that_clears_the_floor_is_compared() -> None:
+    """The floor withholds a verdict; it does not remove the feature."""
+    prompt = _trend_prompt(PeriodStats(games=3, wins=3, avg_cpl=100.0, win_rate=100.0))
+    assert "Last 30 days: 3 games, 100.0% win rate, 100.0 avg CPL\n" in prompt
+    assert "→ Win rate UP 45.1% vs all-time" in prompt
+    assert "→ CPL improved by 63.1 (lower is better)" in prompt
+
+
+def test_a_trivial_move_is_not_reported_as_a_change() -> None:
+    """The same ±0.5% and ±5 CPL bands as every other comparison in the file.
+    All-time is 107/195 = 54.9% at 163.1 CPL."""
+    prompt = _trend_prompt(PeriodStats(games=10, wins=5, avg_cpl=165.0, win_rate=55.0))
+    assert "→ Win rate ≈ same as all-time" in prompt
+    assert "→ CPL ≈ same as all-time" in prompt
+    assert "Win rate UP" not in prompt
+    assert "CPL worse" not in prompt
 
 
 # ---------- an opening question gets the opening stats ----------
