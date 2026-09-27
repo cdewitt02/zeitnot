@@ -610,42 +610,58 @@ class QueryRouter:
     # ---------- trend and opening detail ----------
 
     def _write_trend_stats(self, sb: StringIO, stats: PlayerStats) -> None:
+        """Recent periods against all-time.
+
+        The same floor as every other bucket: a period under
+        `MIN_GAMES_FOR_COMPARISON` games keeps its row and loses its verdicts.
+        The deltas use the thresholds `format_win_rate_comparison` and
+        `format_cpl_comparison` use, so a 0.1% move is not reported as a
+        change here when it would be "≈ same as overall" everywhere else.
+        """
         sb.write("RECENT PERFORMANCE (trend analysis):\n")
 
         all_time_win_rate = 0.0
         if stats.total_games > 0:
             all_time_win_rate = stats.wins / stats.total_games * 100
         sb.write(
-            f"All-time: {stats.total_games} games, {all_time_win_rate:.1f}% win rate, "
+            f"All-time: {format_games(stats.total_games)}, {all_time_win_rate:.1f}% win rate, "
             f"{stats.avg_cpl:.1f} avg CPL\n"
         )
 
         last_30 = stats.last_30_days
         if last_30 is not None and last_30.games > 0:
-            sb.write(
-                f"Last 30 days: {last_30.games} games, {last_30.win_rate:.1f}% win rate, "
-                f"{last_30.avg_cpl:.1f} avg CPL\n"
+            row = (
+                f"Last 30 days: {format_games(last_30.games)}, {last_30.win_rate:.1f}% win rate, "
+                f"{last_30.avg_cpl:.1f} avg CPL"
             )
+            if last_30.games < MIN_GAMES_FOR_COMPARISON:
+                sb.write(f"{row} (only {format_games(last_30.games)} - too few to compare)\n")
+            else:
+                sb.write(f"{row}\n")
 
-            win_rate_delta = last_30.win_rate - all_time_win_rate
-            cpl_delta = last_30.avg_cpl - stats.avg_cpl
+                win_rate_delta = last_30.win_rate - all_time_win_rate
+                if win_rate_delta > 0.5:
+                    sb.write(f"  → Win rate UP {win_rate_delta:.1f}% vs all-time\n")
+                elif win_rate_delta < -0.5:
+                    sb.write(f"  → Win rate DOWN {-win_rate_delta:.1f}% vs all-time\n")
+                else:
+                    sb.write("  → Win rate ≈ same as all-time\n")
 
-            if win_rate_delta > 0:
-                sb.write(f"  → Win rate UP {win_rate_delta:.1f}% vs all-time\n")
-            elif win_rate_delta < 0:
-                sb.write(f"  → Win rate DOWN {-win_rate_delta:.1f}% vs all-time\n")
-
-            if cpl_delta < 0:
-                sb.write(f"  → CPL improved by {-cpl_delta:.1f} (lower is better)\n")
-            elif cpl_delta > 0:
-                sb.write(f"  → CPL worse by {cpl_delta:.1f} (lower is better)\n")
+                cpl_delta = last_30.avg_cpl - stats.avg_cpl
+                if cpl_delta < -5:
+                    sb.write(f"  → CPL improved by {-cpl_delta:.1f} (lower is better)\n")
+                elif cpl_delta > 5:
+                    sb.write(f"  → CPL worse by {cpl_delta:.1f} (lower is better)\n")
+                else:
+                    sb.write("  → CPL ≈ same as all-time\n")
         else:
             sb.write("Last 30 days: No games with recorded dates in this period\n")
 
+        # No comparison lines for this period, so it needs no floor.
         last_90 = stats.last_90_days
         if last_90 is not None and last_90.games > 0:
             sb.write(
-                f"Last 90 days: {last_90.games} games, {last_90.win_rate:.1f}% win rate, "
+                f"Last 90 days: {format_games(last_90.games)}, {last_90.win_rate:.1f}% win rate, "
                 f"{last_90.avg_cpl:.1f} avg CPL\n"
             )
 
