@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import chess
 import pytest
 
 from tests.conftest import load_golden
@@ -29,6 +30,7 @@ from zeitnot.engine import (
     get_evaluation,
     move_identities,
     normalize_eval,
+    read_pgn,
 )
 from zeitnot.models import MoveAnalysis
 
@@ -99,6 +101,65 @@ def test_normalize_eval_flips_on_odd_indices_only() -> None:
         assert normalize_eval(150, index) == 150
     for index in (1, 3, 5):
         assert normalize_eval(150, index) == -150
+
+
+# ---------- one search per position ----------
+
+
+class _CountingEngine:
+    """A stand-in engine that scores a position by its FEN and logs each search.
+
+    Scoring by FEN makes a carried search that belonged to the wrong position
+    visible: its evaluation would not be the one this position hashes to.
+    """
+
+    def __init__(self) -> None:
+        self.searched: list[str] = []
+
+    def analyze_position(self, board: chess.Board, depth: int) -> MoveAnalysis:
+        fen = board.fen()
+        self.searched.append(fen)
+        return MoveAnalysis(
+            best_move=next(iter(board.legal_moves)).uci(),
+            evaluation=sum(map(ord, fen)) % 300 - 150,
+            depth=depth,
+        )
+
+
+def _positions(pgn: str) -> list[str]:
+    board = read_pgn(pgn).board()
+    fens = [board.fen()]
+    for move in read_pgn(pgn).mainline_moves():
+        board.push(move)
+        fens.append(board.fen())
+    return fens
+
+
+def test_each_position_is_searched_once() -> None:
+    """The position after move i is the position before move i + 1, so a game
+    of N moves costs N + 1 searches — and each move's stored search must be the
+    one for the position before *it*, not a neighbour's.
+    """
+    pgn = '[Event "t"]\n[Result "*"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *\n'
+    engine = _CountingEngine()
+    analyses = analyze_game(engine, pgn, depth=6)  # type: ignore[arg-type]
+
+    fens = _positions(pgn)
+    assert engine.searched == fens
+    reference = _CountingEngine()
+    for fen, analysis in zip(fens, analyses, strict=False):
+        want = reference.analyze_position(chess.Board(fen), 6)
+        assert (analysis.evaluation, analysis.best_move) == (want.evaluation, want.best_move)
+
+
+def test_a_terminal_final_position_is_not_searched() -> None:
+    """Checkmate is scored directly, so N moves ending in mate cost N searches."""
+    pgn = '[Event "t"]\n[Result "0-1"]\n\n1. f3 e5 2. g4 Qh4# 0-1\n'
+    engine = _CountingEngine()
+    analyses = analyze_game(engine, pgn, depth=6)  # type: ignore[arg-type]
+
+    assert engine.searched == _positions(pgn)[:-1]
+    assert len(analyses) == 4
 
 
 # ---------- the terminal-position branch ----------

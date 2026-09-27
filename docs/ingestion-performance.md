@@ -12,37 +12,31 @@ storage decision touches.
 
 ## 1. Every interior position is analyzed twice
 
-**Free ~2× speedup. No quality change, no configuration, no trade-off.**
+**Fixed ([#11](https://github.com/cdewitt02/zeitnot/issues/11)). Measured ~1.5× on analysis.**
 
-`analyze_game` (`zeitnot/engine.py`) loops over half-moves and makes two engine calls per
-iteration:
+`analyze_game` (`zeitnot/engine.py`) used to make two engine calls per half-move — the position before
+and the position after — so iteration `i + 1` re-searched the position iteration `i` had just searched.
+It now carries each after-search forward as the next before-search: `2N` searches become `N + 1`, or `N`
+when the game ends in mate or stalemate, since a terminal position is scored without a search and
+carries nothing forward. The carry is local to one call, so it resets between games and never crosses
+the workers in `zeitnot/ingest.py`, each of which owns its own engine.
 
-```python
-before = engine.analyze_position(positions[i], depth)
-after_pos = positions[i + 1]
-after = engine.analyze_position(after_pos, depth)
-```
+**Measured.** 40 games (3,077 moves) at depth 12: 90.1s → 60.2s with a fresh engine per game, 77.0s →
+48.4s with one engine reused across games as a worker does — 1.50× and 1.59×, not the 2× first
+estimated.
 
-Iteration `i` analyzes `gamePositions[i]` and `gamePositions[i+1]`. Iteration `i+1` then analyzes
-`gamePositions[i+1]` again at line 99 — same position, same depth, same function. **Every interior
-position is evaluated exactly twice.**
+**Not byte-identical, and that is expected.** This section originally claimed the stored values would
+not change, on the grounds that a fixed-depth search of a fixed position is deterministic. It is only
+deterministic from the same engine state, and Stockfish keeps its hash table between searches. The
+old loop's second search of each position ran with its own first search already in the table, so it
+was never a clean single search; removing it changes the table's contents and shifts `evaluation`,
+`best_move`, `cpl` and `classification` on most rows. Neither set is more correct — the new values
+come from one search per position rather than a repeated one. Byte-identical output would need the
+hash cleared before every search, which costs speed and changes every stored value anyway.
 
-**Fix.** Carry the previous iteration's `afterAnalysis` forward as the next `beforeAnalysis`. Analyses
-drop from `2N` to `N+1`. Stockfish at a fixed depth on a fixed position is deterministic, so the results
-are identical — this is caching, not approximation.
-
-**Effect.** Ingestion roughly halves: ~12 min → ~6 min for a month of games. That is a larger cut to
-Time to First Chat than every decision in [`multi-provider/`](./multi-provider/) combined.
-
-**Caveats to handle:** the terminal-position branch in `zeitnot/engine.py` skips the after-analysis and
-must not poison the cache; iteration 0 still needs a fresh before-analysis; and the cache is per-game, so
-it resets between games and stays compatible with `WorkerPool` in `zeitnot/ingest.py`, which
-gives each worker its own engine process.
-
-**Verification.** Analyze the same games before and after and diff the stored `moves` rows — `cpl`,
-`classification`, `evaluation`, and `best_move` must be byte-identical. The pure normalization,
-evaluation, and classification helpers already have regression coverage in
-`tests/test_parity_engine.py`, providing a safety net before this loop is changed.
+The pure normalization, evaluation, and classification helpers have regression coverage in
+`tests/test_engine.py`, which also checks that each position is searched once and that each move gets
+its own position's search.
 
 ---
 
