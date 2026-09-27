@@ -124,7 +124,7 @@ def extract_summary_data(
         time_class=game.time_class,
         opening_name=game.opening_name(),
         eco_code=game.eco_code(),
-        total_moves=len(moves),
+        total_plies=len(moves),
         opening=opening_stats,
         middlegame=middlegame_stats,
         endgame=endgame_stats,
@@ -156,16 +156,25 @@ def generate_summary(data: GameSummaryData) -> str:
         f"{total_mistakes} mistakes, and {total_inaccuracies} inaccuracies.\n"
         f"{weakest_phase(data.opening, data.middlegame, data.endgame)}.\n"
         f"{detect_pattern(data)}.\n"
-        f"Game length: {classify_game_length(data.total_moves)}.\n"
+        f"Game length: {classify_game_length(data.total_plies)}.\n"
         f"Termination type: {data.termination_type}.\n"
         f"Opponent rating: {data.opponent_rating}.\n"
     )
 
 
-def classify_game_length(total_moves: int) -> str:
-    if total_moves < 20:
+def classify_game_length(total_plies: int) -> str:
+    """Bucket a game by its length in **full moves**: under 20 is short, 40 or
+    more is long.
+
+    The count arrives in plies, so it converts first — the last ply's full move
+    number, `(total_plies - 1) // 2 + 1`, the same conversion as the phase
+    boundaries above. Until #32 the thresholds were read against plies, so a
+    "Long game" was anything that reached full move 20.
+    """
+    full_moves = (total_plies + 1) // 2
+    if full_moves < 20:
         return "Short game"
-    if total_moves < 40:
+    if full_moves < 40:
         return "Medium length game"
     return "Long game"
 
@@ -173,21 +182,33 @@ def classify_game_length(total_moves: int) -> str:
 def weakest_phase(opening: PhaseStats, middlegame: PhaseStats, endgame: PhaseStats) -> str:
     """Name the phase with the highest average centipawn loss.
 
-    "Endgame was weakest" is the `else` catch-all, so a tie between two phase
-    averages is reported as an endgame weakness rather than as a tie. That is
-    issue #32.
+    Only phases the player reached are compared: a phase with no moves has no
+    average, and scoring it as 0.0 would let it tie with a clean one. When two
+    phases share the highest average both are named; when every phase reached
+    shares it, none is. Until #32 every tie was reported as "Endgame was
+    weakest".
     """
-    opening_avg = opening.total_cpl / opening.move_count if opening.move_count > 0 else 0.0
-    middlegame_avg = (
-        middlegame.total_cpl / middlegame.move_count if middlegame.move_count > 0 else 0.0
-    )
-    endgame_avg = endgame.total_cpl / endgame.move_count if endgame.move_count > 0 else 0.0
+    # Exact float comparison is sound here: two equal ratios of integers divide
+    # to the same correctly rounded float.
+    averages = [
+        (name, phase.total_cpl / phase.move_count)
+        for name, phase in (
+            ("opening", opening),
+            ("middlegame", middlegame),
+            ("endgame", endgame),
+        )
+        if phase.move_count > 0
+    ]
+    if not averages:
+        return "No phase was weakest"
 
-    if opening_avg > middlegame_avg and opening_avg > endgame_avg:
-        return "Opening was weakest"
-    if middlegame_avg > opening_avg and middlegame_avg > endgame_avg:
-        return "Middlegame was weakest"
-    return "Endgame was weakest"
+    worst = max(average for _, average in averages)
+    tied = [name for name, average in averages if average == worst]
+    if len(tied) == 1:
+        return f"{tied[0].capitalize()} was weakest"
+    if len(tied) == len(averages):
+        return "No phase was weakest"
+    return f"{tied[0].capitalize()} and {tied[1]} were equally weak"
 
 
 def detect_pattern(data: GameSummaryData) -> str:

@@ -189,6 +189,13 @@ from the buggy implementation agrees with it.
 catch-all) and `classify_game_length`, which has the same ply/move ambiguity
 with no comment stating which was meant. Both still want a maintainer's call.
 
+**Both answered 2026-09-27 in #32.** A tie names the tied phases ("Opening and
+middlegame were equally weak"), or none when every phase reached shares the
+highest average, and a phase the player never reached is left out of the
+comparison rather than scored 0.0. `classify_game_length`'s thresholds were
+meant as full moves, by the same argument as the phase boundaries: it now
+converts from plies, so "Long game" means full move 40 or later.
+
 **Operator action — and there is no command for it.** A fresh clone is
 unaffected; an existing corpus is stuck. `zeitnot data reembed` rebuilds vectors
 *from the stored summary text* and does not regenerate that text, and

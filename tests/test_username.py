@@ -146,10 +146,9 @@ def test_the_embedded_text_does_not_depend_on_how_the_name_was_typed(typed: str)
 def test_the_player_is_white_when_the_registered_name_is_white() -> None:
     """Guards the direction of the fix: case-insensitive, not always-Black.
 
-    `extract_summary_data` picks Black as its `else`, exactly as
-    `weakest_phase` picks the endgame, so a comparison that never matches is
-    indistinguishable from one that always resolves to Black. These assert the
-    values rather than only their agreement.
+    `extract_summary_data` picks Black as its `else`, so a comparison that
+    never matches is indistinguishable from one that always resolves to Black.
+    These assert the values rather than only their agreement.
     """
     data = extract_summary_data(_game(), _moves(), "HIKARU")
     assert data.player_color == "white"

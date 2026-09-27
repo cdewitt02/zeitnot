@@ -26,8 +26,8 @@ A few properties are easy to break with a change that looks like a cleanup:
   collected everything from move 13 — 45% of `weakest_phase` verdicts on a real
   195-game corpus. Fixed 2026-09-14; see
   [`opensource-readiness/02-open-questions.md`](opensource-readiness/02-open-questions.md)
-  Q8. `classify_game_length` still takes `total_moves`, which is a **ply** count,
-  and nothing records which was meant.
+  Q8. `classify_game_length` had the same misreading; its thresholds are full
+  moves and it converts from `total_plies` since #32.
 - **No superlative rests on a sample that cannot support it.** Below
   `MIN_GAMES_FOR_COMPARISON` a bucket keeps its numbers and loses its comparison
   string. A one-game bucket rendered as "100.0% win rate (45.1% ABOVE overall)"
