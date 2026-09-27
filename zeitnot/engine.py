@@ -253,10 +253,14 @@ def _identities(positions: list[chess.Board], moves: list[chess.Move]) -> list[t
 def analyze_game(engine: Engine, pgn_text: str, depth: int) -> list[MoveAnalysis]:
     """Analyze every move of a game.
 
-    Two searches per move — the position before, and the position after — which
-    is why ingestion is dominated by Stockfish. Halving that is a real ~2x win
-    and it is deliberately **not** folded in here: an optimization inside a port
-    means a diff that fails can no longer be attributed.
+    Each move needs the position before it and the position after it, and the
+    position after move `i` is the position before move `i + 1` — so the search
+    of one is carried forward as the other, and a game of N moves costs N + 1
+    searches rather than 2N. Stockfish at a fixed depth on a fixed position
+    returns the same answer, so this is caching, not approximation.
+
+    The carry is local to one call, so it resets between games and never
+    crosses workers, each of which owns its own engine.
     """
     positions, moves = _replay(pgn_text)
     # The engine-independent half of every row, built by the same helper that
@@ -265,8 +269,11 @@ def analyze_game(engine: Engine, pgn_text: str, depth: int) -> list[MoveAnalysis
     identities = _identities(positions, moves)
 
     analyses: list[MoveAnalysis] = []
+    # The search of positions[i], when the previous iteration already made it.
+    carried: MoveAnalysis | None = None
     for i, played in enumerate(moves):
-        before = engine.analyze_position(positions[i], depth)
+        before = carried if carried is not None else engine.analyze_position(positions[i], depth)
+        carried = None
         after_pos = positions[i + 1]
 
         if after_pos.is_game_over(claim_draw=False):
@@ -278,6 +285,7 @@ def analyze_game(engine: Engine, pgn_text: str, depth: int) -> list[MoveAnalysis
             actual_eval = (10000 if i % 2 == 0 else -10000) if after_pos.is_checkmate() else 0
         else:
             after = engine.analyze_position(after_pos, depth)
+            carried = after
             actual_eval = normalize_eval(get_evaluation(after), i + 1)
 
         best_eval = normalize_eval(get_evaluation(before), i)
