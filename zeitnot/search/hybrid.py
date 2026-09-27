@@ -101,7 +101,6 @@ def _merge_filters(parsed: GameFilters, explicit: GameFilters | None) -> GameFil
         "result",
         "user_color",
         "time_class",
-        "weak_phase",
         "eco_prefix",
         "opening_name",
         "min_blunders",
