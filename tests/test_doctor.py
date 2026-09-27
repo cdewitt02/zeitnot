@@ -93,6 +93,27 @@ def test_an_unreadable_port_warns_instead_of_raising() -> None:
     assert check.status is Status.WARN
 
 
+# ---------- NUM_WORKERS ----------
+
+
+def test_an_unusable_worker_count_is_a_warning_naming_value_and_fallback() -> None:
+    check = doctor.check_num_workers({"NUM_WORKERS": "four"})
+    assert check.status is Status.WARN
+    assert check.detail == "NUM_WORKERS='four' is not a positive integer; using 4"
+
+
+def test_a_usable_worker_count_is_ok() -> None:
+    check = doctor.check_num_workers({"NUM_WORKERS": "2"})
+    assert check.status is Status.OK
+    assert check.detail == "2 workers"
+
+
+def test_an_unset_worker_count_names_the_default() -> None:
+    check = doctor.check_num_workers({})
+    assert check.status is Status.OK
+    assert "4" in check.detail
+
+
 # ---------- the environment file ----------
 
 
