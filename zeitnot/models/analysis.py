@@ -43,7 +43,7 @@ class GameSummaryData:
     opening_name: str = ""
     eco_code: str = ""
 
-    total_moves: int = 0
+    total_plies: int = 0  # len(moves): one per side's move, not full moves
 
     opening: PhaseStats = field(default_factory=PhaseStats)
     middlegame: PhaseStats = field(default_factory=PhaseStats)

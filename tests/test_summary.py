@@ -185,18 +185,27 @@ def test_a_short_game_never_reaches_the_later_phases() -> None:
 
 
 @pytest.mark.parametrize(
-    ("total_moves", "want"),
+    ("total_plies", "want"),
     [
         (0, "Short game"),
-        (19, "Short game"),
-        (20, "Medium length game"),
-        (39, "Medium length game"),
-        (40, "Long game"),
+        (38, "Short game"),  # full move 19, Black's reply
+        (39, "Medium length game"),  # full move 20 has started
+        (78, "Medium length game"),  # full move 39, Black's reply
+        (79, "Long game"),  # full move 40 has started
         (200, "Long game"),
     ],
 )
-def test_classify_game_length_boundaries(total_moves: int, want: str) -> None:
-    assert classify_game_length(total_moves) == want
+def test_classify_game_length_thresholds_are_full_moves(total_plies: int, want: str) -> None:
+    """#32. The argument is a ply count and the thresholds are full moves, so
+    each boundary is checked from both sides. Read against plies, 40 was "Long
+    game" — a game that had only reached full move 20."""
+    assert classify_game_length(total_plies) == want
+
+
+def test_a_summary_reports_game_length_in_full_moves() -> None:
+    data = extract_summary_data(_game("win", "resigned"), _ply_moves(40), "player")
+    assert data.total_plies == 40
+    assert "Game length: Medium length game.\n" in generate_summary(data)
 
 
 @pytest.mark.parametrize(
@@ -234,3 +243,38 @@ def test_weakest_phase_picks_the_highest_average_not_the_highest_total() -> None
     endgame = PhaseStats(total_cpl=400, move_count=40)  # avg 10, highest total
     assert weakest_phase(opening, middlegame, endgame) == "Opening was weakest"
     assert weakest_phase(PhaseStats(), middlegame, PhaseStats()) == "Middlegame was weakest"
+
+
+@pytest.mark.parametrize(
+    ("opening", "middlegame", "endgame", "want"),
+    [
+        # Two phases share the highest average: both are named, in game order.
+        ((80, 2), (40, 1), (10, 1), "Opening and middlegame were equally weak"),
+        ((80, 2), (10, 1), (40, 1), "Opening and endgame were equally weak"),
+        ((10, 1), (80, 2), (40, 1), "Middlegame and endgame were equally weak"),
+        # Every phase reached shares it: none is weaker than another.
+        ((20, 1), (20, 1), (20, 1), "No phase was weakest"),
+        ((20, 1), (40, 2), (0, 0), "No phase was weakest"),
+        ((0, 0), (0, 0), (0, 0), "No phase was weakest"),
+        # A tie below the highest average is not a tie for weakest.
+        ((10, 1), (10, 1), (40, 1), "Endgame was weakest"),
+    ],
+)
+def test_weakest_phase_reports_a_tie_as_a_tie(
+    opening: tuple[int, int], middlegame: tuple[int, int], endgame: tuple[int, int], want: str
+) -> None:
+    """#32. The endgame used to be the `else` catch-all, so every one of these
+    except the last said "Endgame was weakest"."""
+    phases = [PhaseStats(total_cpl=cpl, move_count=n) for cpl, n in (opening, middlegame, endgame)]
+    assert weakest_phase(*phases) == want
+
+
+def test_a_phase_the_player_never_reached_is_not_weakest() -> None:
+    """An empty phase has no average. Scored as 0.0, it tied with a clean
+    opening, and a flawless miniature was summarized as an endgame weakness."""
+    clean_opening = PhaseStats(total_cpl=0, move_count=8)
+    assert weakest_phase(clean_opening, PhaseStats(), PhaseStats()) == "Opening was weakest"
+
+    moves = [MoveAnalysis(played_move="a2a3", classification="best") for _ in range(16)]
+    data = extract_summary_data(_game("win", "resigned"), moves, "player")
+    assert "Opening was weakest.\n" in generate_summary(data)
