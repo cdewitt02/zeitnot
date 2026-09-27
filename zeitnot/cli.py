@@ -20,7 +20,7 @@ from zeitnot.api import ChessComError, get_data
 from zeitnot.chat.service import Config as ChatConfig
 from zeitnot.chat.service import Service
 from zeitnot.db import DB, DBConnectionError, IndexMeta
-from zeitnot.llm.base import Embedder, embed_one
+from zeitnot.llm.base import Embedder
 from zeitnot.models import Game, YearMonth, canonical_username
 
 _HELP = "A chess coach that answers questions about your own games."
@@ -60,6 +60,10 @@ def _load_environment(ctx: typer.Context) -> None:
 # invalidates the Phase 5 goldens.
 DEFAULT_NUM_SIMILAR = 100
 DEFAULT_DETAIL_LIMIT = 10
+
+# Summaries per `embed` call in `reembed`. OpenAI's embeddings endpoint caps the
+# input array at 128 per request, which its adapter chunks at too.
+REEMBED_BATCH = 128
 
 
 def _fail(message: str) -> None:
@@ -311,11 +315,26 @@ def reembed() -> None:
         print(f"Re-embedding {len(rows)} summaries with {embedder.name()} / {embedder.model()}...")
         start = time.monotonic()
 
-        for i, row in enumerate(rows):
-            vector = embed_one(embedder, row.summary_text)
-            database.update_summary_embedding(row.game_uuid, vector)
-            if (i + 1) % 25 == 0 or i + 1 == len(rows):
-                print(f"[{i + 1}/{len(rows)}]")
+        # One `embed` call per chunk, so an embedder that batches natively
+        # (OpenAI) makes ⌈n/128⌉ requests rather than n. Ollama loops inside
+        # its adapter either way. Each chunk is written as soon as it returns,
+        # so a failure partway leaves every earlier vector in place.
+        done = 0
+        for chunk_start in range(0, len(rows), REEMBED_BATCH):
+            chunk = rows[chunk_start : chunk_start + REEMBED_BATCH]
+            vectors = embedder.embed([row.summary_text for row in chunk])
+            if len(vectors) != len(chunk):
+                _fail(
+                    f"{embedder.name()} returned {len(vectors)} vectors for {len(chunk)} summaries"
+                )
+                return
+            # `embed` returns one vector per input in input order, so pairing
+            # back to the game is positional.
+            for row, vector in zip(chunk, vectors, strict=True):
+                database.update_summary_embedding(row.game_uuid, vector)
+                done += 1
+                if done % 25 == 0 or done == len(rows):
+                    print(f"[{done}/{len(rows)}]")
 
         database.set_index_meta(
             IndexMeta(
