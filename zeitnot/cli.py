@@ -294,6 +294,14 @@ def reembed() -> None:
         cfg = config.resolve()
         embedder = cfg.new_embedder()
         config.preflight(sys.stderr, embedder)
+        # The width half of `check_index` only. Provenance is skipped on
+        # purpose: this is the command that resolves a provenance mismatch, so
+        # refusing to run on one would be circular.
+        try:
+            config.check_embedding_width(database, embedder, sys.stderr)
+        except config.ConfigError as err:
+            _fail(str(err))
+            return
 
         rows = database.all_summary_texts()
         if not rows:
